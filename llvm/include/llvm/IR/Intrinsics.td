@@ -2879,4 +2879,9 @@ include "llvm/IR/IntrinsicsVE.td"
 include "llvm/IR/IntrinsicsDirectX.td"
 include "llvm/IR/IntrinsicsLoongArch.td"
 
+//===----------------------------------------------------------------------===//
+// ZLUDA-specific intrinsics
+//===----------------------------------------------------------------------===//
+include "llvm/IR/IntrinsicsZLUDA.td"
+
 #endif // TEST_INTRINSICS_SUPPRESS_DEFS

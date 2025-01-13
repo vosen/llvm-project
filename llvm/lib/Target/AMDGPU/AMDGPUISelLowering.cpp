@@ -178,6 +178,9 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::ATOMIC_STORE, MVT::bf16, Promote);
   AddPromotedToType(ISD::ATOMIC_STORE, MVT::bf16, MVT::i16);
 
+  setOperationAction(ISD::ATOMIC_LOAD, MVT::i128, Custom);
+  setOperationAction(ISD::ATOMIC_STORE, MVT::i128, Custom);
+
   // There are no 64-bit extloads. These should be done as a 32-bit extload and
   // an extension to 64-bit.
   for (MVT VT : MVT::integer_valuetypes())
@@ -638,7 +641,7 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
                        ISD::FABS,       ISD::AssertZext,
                        ISD::AssertSext, ISD::INTRINSIC_WO_CHAIN});
 
-  setMaxAtomicSizeInBitsSupported(64);
+  setMaxAtomicSizeInBitsSupported(128);
   setMaxDivRemBitWidthSupported(64);
   setMaxLargeFPConvertBitWidthSupported(64);
 }
@@ -1428,6 +1431,51 @@ SDValue AMDGPUTargetLowering::LowerDYNAMIC_STACKALLOC(SDValue Op,
   return DAG.getMergeValues(Ops, SDLoc());
 }
 
+SDValue AMDGPUTargetLowering::LowerATOMIC_LOAD(SDValue Op,
+                                               SelectionDAG &DAG) const {
+    auto *AN = cast<AtomicSDNode>(Op.getNode());
+    EVT VT = Op.getValueType();
+    if (VT != MVT::i128)
+      return SDValue(); // Let non-i128 cases go through normal paths
+
+    SDLoc DL(Op);
+    SDValue Chain = Op.getOperand(0);
+    SDValue Ptr   = Op.getOperand(1);
+
+    // Load as v4i32 into a VReg_128, preserving atomic MMO.
+    EVT VecVT = MVT::v4i32;
+    MachineMemOperand *MMO = AN->getMemOperand();
+
+    SDValue VecLd = DAG.getLoad(VecVT, DL, Chain, Ptr, MMO);
+    SDValue NewChain = VecLd.getValue(1);
+    SDValue Val = DAG.getBitcast(VT, VecLd); // v4i32 -> i128
+
+    return DAG.getMergeValues({Val, NewChain}, DL);
+}
+
+SDValue AMDGPUTargetLowering::LowerATOMIC_STORE(SDValue Op,
+                                                SelectionDAG &DAG) const {
+  // Mirror the i128 atomic load scheme: store as v4i32 with the same MMO.
+  auto *AN = cast<AtomicSDNode>(Op.getNode());
+  SDLoc DL(Op);
+
+  SDValue Chain = Op.getOperand(0);
+  SDValue Val   = Op.getOperand(1);
+  SDValue Ptr   = Op.getOperand(2);
+
+  EVT VT = Val.getValueType();
+  if (VT != MVT::i128)
+    return SDValue(); // Let non-i128 cases go through normal paths
+
+  // Bitcast the scalar i128 value to v4i32 to target the 128-bit vector store
+  // patterns (DWORDX4). Preserve atomicity/order via the original MMO.
+  SDValue VecVal = DAG.getBitcast(MVT::v4i32, Val);
+  MachineMemOperand *MMO = AN->getMemOperand();
+
+  SDValue Store = DAG.getStore(Chain, DL, VecVal, Ptr, MMO);
+  return Store;
+}
+
 SDValue AMDGPUTargetLowering::LowerOperation(SDValue Op,
                                              SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
@@ -1472,6 +1520,8 @@ SDValue AMDGPUTargetLowering::LowerOperation(SDValue Op,
   case ISD::CTLZ_ZERO_UNDEF:
     return LowerCTLZ_CTTZ(Op, DAG);
   case ISD::DYNAMIC_STACKALLOC: return LowerDYNAMIC_STACKALLOC(Op, DAG);
+  case ISD::ATOMIC_LOAD: return LowerATOMIC_LOAD(Op, DAG);
+  case ISD::ATOMIC_STORE: return LowerATOMIC_STORE(Op, DAG);
   }
   return Op;
 }
@@ -1480,6 +1530,19 @@ void AMDGPUTargetLowering::ReplaceNodeResults(SDNode *N,
                                               SmallVectorImpl<SDValue> &Results,
                                               SelectionDAG &DAG) const {
   switch (N->getOpcode()) {
+  case ISD::ATOMIC_LOAD: {
+    if (SDValue Lowered = LowerATOMIC_LOAD(SDValue(N, 0), DAG); Lowered) {
+      Results.push_back(Lowered);
+      Results.push_back(Lowered.getValue(1));
+    }
+    break;
+  }
+  case ISD::ATOMIC_STORE: {
+    if (SDValue Lowered = LowerATOMIC_STORE(SDValue(N, 0), DAG); Lowered) {
+      Results.push_back(Lowered);
+    }
+    break;
+  }
   case ISD::SIGN_EXTEND_INREG:
     // Different parts of legalization seem to interpret which type of
     // sign_extend_inreg is the one to check for custom lowering. The extended
