@@ -62,11 +62,14 @@
 #include "llvm/Transforms/IPO/GlobalDCE.h"
 #include "llvm/Transforms/IPO/Internalize.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/InferAddressSpaces.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/SimplifyLibCalls.h"
 #include "llvm/Transforms/Vectorize/LoadStoreVectorizer.h"
+#include "llvm/Transforms/ZLUDA/CombineMMA.h"
+#include "llvm/Transforms/ZLUDA/LowerMatrixConversions.h"
 #include <optional>
 
 using namespace llvm;
@@ -759,6 +762,19 @@ void AMDGPUTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
         if (EarlyInlineAll && !EnableFunctionCalls)
           PM.addPass(AMDGPUAlwaysInlinePass());
       });
+
+  PB.registerPipelineEarlySimplificationEPCallback(
+    [](ModulePassManager &PM, OptimizationLevel Level) {
+      FunctionPassManager ZludaFPM;
+        // TODO: maybe disable combining MMAs and just lower them individually
+        // if at O0
+        ZludaFPM.addPass(CombineMMAPass());
+        if (Level != OptimizationLevel::O0) {
+          ZludaFPM.addPass(EarlyCSEPass());
+        }
+        ZludaFPM.addPass(LowerMatrixConversionsPass());
+        PM.addPass(createModuleToFunctionPassAdaptor(std::move(ZludaFPM)));
+    });
 
   PB.registerPeepholeEPCallback(
       [](FunctionPassManager &FPM, OptimizationLevel Level) {

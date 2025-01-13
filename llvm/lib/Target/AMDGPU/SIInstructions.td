@@ -2753,6 +2753,26 @@ def : GCNPat <
                         SSrc_i1:$src))
 >;
 
+/*
+This fails anyway on gfx10 with assertion about fp16 support
+def : GCNPat <
+  (bf16 (uint_to_fp i1:$src)),
+  (bf16 (EXTRACT_SUBREG 
+      (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
+                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.BF16_ONE),
+                         SSrc_i1:$src),
+      lo16))
+>;
+*/
+
+let SubtargetPredicate = isGFX11Plus in
+def : GCNPat <
+  (bf16 (uint_to_fp i1:$src)),
+  (bf16 (V_CNDMASK_B16_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
+                           /*src1mod*/(i32 0), /*src1*/(i32 CONST.BF16_ONE),
+                           SSrc_i1:$src))
+>;
+
 def : GCNPat <
   (f32 (sint_to_fp i1:$src)),
   (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
