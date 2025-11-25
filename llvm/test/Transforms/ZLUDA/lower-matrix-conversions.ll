@@ -317,7 +317,7 @@ define void @bmatrix_zext(ptr %amd_b, <2 x i32> %nv_b) {
 ; CHECK-NEXT:    store <16 x i16> [[TMP106]], ptr [[AMD_B]], align 32
 ; CHECK-NEXT:    ret void
 ;
-  %converted_b = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8.v16i16.v2i32(<2 x i32> %nv_b)
+  %converted_b = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8.bf16(<2 x i32> %nv_b)
   store <16 x i16> %converted_b, ptr %amd_b
 
   ret void
@@ -498,7 +498,7 @@ define void @bmatrix_concatenate(ptr %amd_b, <2 x i32> %nv_b0, <2 x i32> %nv_b1)
 ; CHECK-NEXT:    store <16 x i16> [[CONVERTED_B]], ptr [[AMD_B]], align 32
 ; CHECK-NEXT:    ret void
 ;
-  %converted_b = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8.v16i16.v2i32(<2 x i32> %nv_b0, <2 x i32> %nv_b1)
+  %converted_b = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8.bf16(<2 x i32> %nv_b0, <2 x i32> %nv_b1)
   store <16 x i16> %converted_b, ptr %amd_b
 
   ret void
@@ -847,7 +847,7 @@ define void @cmatrix_zext(ptr %amd_c, <4 x float> %nv_c) {
 ; CHECK-NEXT:    store <8 x float> [[TMP153]], ptr [[AMD_C]], align 32
 ; CHECK-NEXT:    ret void
 ;
-  %converted_c = call <8 x float> @llvm.zluda.cmatrix.zext.amd16x16.nv16x8.v8f32.v4f32(<4 x float> %nv_c)
+  %converted_c = call <8 x float> @llvm.zluda.cmatrix.zext.amd16x16.nv16x8.f32(<4 x float> %nv_c)
   store <8 x float> %converted_c, ptr %amd_c
 
   ret void
@@ -1196,7 +1196,7 @@ define void @cmatrix_concatenate(ptr %amd_c, <4 x float> %nv_c0, <4 x float> %nv
 ; CHECK-NEXT:    store <8 x float> [[TMP153]], ptr [[AMD_C]], align 32
 ; CHECK-NEXT:    ret void
 ;
-  %converted_c = call <8 x float> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8.v8f32.v4f32(<4 x float> %nv_c0, <4 x float> %nv_c1)
+  %converted_c = call <8 x float> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8.f32(<4 x float> %nv_c0, <4 x float> %nv_c1)
   store <8 x float> %converted_c, ptr %amd_c
 
   ret void
@@ -1369,7 +1369,7 @@ define void @dmatrix_trunc(ptr %amd_d, <8 x float> %nv_d) {
 ; CHECK-NEXT:    store <4 x float> [[TMP137]], ptr [[AMD_D]], align 16
 ; CHECK-NEXT:    ret void
 ;
-  %converted_d = call <4 x float> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> %nv_d)
+  %converted_d = call <4 x float> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16.f32(<8 x float> %nv_d)
   store <4 x float> %converted_d, ptr %amd_d
 
   ret void
@@ -1711,7 +1711,7 @@ define void @dmatrix_split(ptr %amd_d0, ptr %amd_d1, <8 x float> %nv_d) {
 ; CHECK-NEXT:    store <4 x float> [[CONVERTED_D1]], ptr [[AMD_D1]], align 16
 ; CHECK-NEXT:    ret void
 ;
-  %converted_d = call { <4 x float>, <4 x float> } @llvm.zluda.dmatrix.split.nv16x8.amd16x16(<8 x float> %nv_d)
+  %converted_d = call { <4 x float>, <4 x float> } @llvm.zluda.dmatrix.split.nv16x8.amd16x16.f32(<8 x float> %nv_d)
   %converted_d0 = extractvalue { <4 x float>, <4 x float> } %converted_d, 0
   %converted_d1 = extractvalue { <4 x float>, <4 x float> } %converted_d, 1
 
