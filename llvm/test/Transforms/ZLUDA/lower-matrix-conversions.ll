@@ -184,7 +184,7 @@ define void @amatrix_convert(ptr %amd_a, <4 x i32> %nv_a) {
 ; CHECK-NEXT:    store <16 x i16> [[TMP145]], ptr [[AMD_A]], align 32
 ; CHECK-NEXT:    ret void
 ;
-  %converted_a = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16.v16i16.v4i32(<4 x i32> %nv_a)
+  %converted_a = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16.bf16(<4 x i32> %nv_a)
   store <16 x i16> %converted_a, ptr %amd_a
 
   ret void
