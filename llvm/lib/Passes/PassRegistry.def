@@ -481,7 +481,6 @@ FUNCTION_PASS("view-dom-only", DomOnlyViewer())
 FUNCTION_PASS("view-post-dom", PostDomViewer())
 FUNCTION_PASS("view-post-dom-only", PostDomOnlyViewer())
 FUNCTION_PASS("wasm-eh-prepare", WasmEHPreparePass())
-FUNCTION_PASS("zluda-split-mma", SplitMMAPass())
 FUNCTION_PASS("zluda-combine-mma", CombineMMAPass())
 FUNCTION_PASS("zluda-lower-matrix-conversions", LowerMatrixConversionsPass())
 #undef FUNCTION_PASS

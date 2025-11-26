@@ -68,7 +68,6 @@
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/SimplifyLibCalls.h"
 #include "llvm/Transforms/Vectorize/LoadStoreVectorizer.h"
-#include "llvm/Transforms/ZLUDA/SplitMMA.h"
 #include "llvm/Transforms/ZLUDA/CombineMMA.h"
 #include "llvm/Transforms/ZLUDA/LowerMatrixConversions.h"
 #include <optional>
@@ -769,7 +768,6 @@ void AMDGPUTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
       FunctionPassManager ZludaFPM;
         // TODO: maybe disable combining MMAs and just lower them individually
         // if at O0
-        ZludaFPM.addPass(SplitMMAPass());
         ZludaFPM.addPass(CombineMMAPass());
         if (Level != OptimizationLevel::O0) {
           ZludaFPM.addPass(EarlyCSEPass());

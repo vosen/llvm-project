@@ -149,3 +149,18 @@ define void @combine_s32(ptr %d0.result, ptr %d1.result, <2 x i32> %a, <1 x i32>
 }
 
 declare <4 x float> @llvm.zluda.mma.m16n8k16.f32.bf16.bf16.f32(<4 x i32>, <2 x i32>, <4 x float>)
+
+; CHECK-LABEL: @dependency_in_middle
+; CHECK: %dependency = insertelement <2 x i32> zeroinitializer, i32 0, i64 0
+; CHECK: [[combined_b:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8.v16i16.v2i32(<2 x i32> %b0, <2 x i32> %dependency)
+; CHECK: [[result:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> {{%.*}}, <16 x i16> [[combined_b]], <8 x float> {{%.*}})
+define void @dont_merge_across_load_store(ptr %d0.result, ptr %d1.result, <4 x i32> %a, <2 x i32> %b0, <4 x float> %c0, <4 x float> %c1, ptr %dependency) {
+  %d0 = tail call <4 x float> @llvm.zluda.mma.m16n8k16.f32.bf16.bf16.f32(<4 x i32> %a, <2 x i32> %b0, <4 x float> %c0)
+  store <4 x float> %d0, ptr %dependency
+  %b1 = load <2 x i32>, ptr %dependency
+  %d1 = tail call <4 x float> @llvm.zluda.mma.m16n8k16.f32.bf16.bf16.f32(<4 x i32> %a, <2 x i32> %b1, <4 x float> %c1)
+  store <4 x float> %d0, ptr %d0.result
+  store <4 x float> %d1, ptr %d1.result
+
+  ret void
+}
