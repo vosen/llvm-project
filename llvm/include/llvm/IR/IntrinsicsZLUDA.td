@@ -4,12 +4,15 @@
 // layout as described in PTX documentation. None of them are lowered to
 // AMD hardware instructions
 
+// The return type should be llvm_v4f32_ty to match the PTX definition,
+// but if the return type is llvm_v4i32_ty it's easier to perform
+// D matrix reconstitution
 def int_zluda_mma_m16n8k16_f32_bf16_bf16_f32 : DefaultAttrsIntrinsic<
-  [llvm_v4f32_ty], [llvm_v4i32_ty, llvm_v2i32_ty, llvm_v4f32_ty],
+  [llvm_v4i32_ty], [llvm_v4i32_ty, llvm_v2i32_ty, llvm_v4i32_ty],
   [IntrNoMem, IntrConvergent]
 >;
 def int_zluda_mma_m16n8k16_f32_f16_f16_f32 : DefaultAttrsIntrinsic<
-  [llvm_v4f32_ty], [llvm_v4i32_ty, llvm_v2i32_ty, llvm_v4f32_ty],
+  [llvm_v4i32_ty], [llvm_v4i32_ty, llvm_v2i32_ty, llvm_v4i32_ty],
   [IntrNoMem, IntrConvergent]
 >;
 def int_zluda_mma_m16n8k32_s32_s8_s8_s32 : DefaultAttrsIntrinsic<
@@ -55,11 +58,11 @@ def int_zluda_bmatrix_zext_amd16x16_nv16x8 : DefaultAttrsIntrinsic<
   [IntrNoMem, IntrConvergent]
 >;
 def int_zluda_cmatrix_zext_amd16x16_nv16x8 : DefaultAttrsIntrinsic<
-  [llvm_v8f32_ty], [llvm_v4f32_ty],
+  [llvm_v8f32_ty], [llvm_v4i32_ty],
   [IntrNoMem, IntrConvergent]
 >;
 def int_zluda_dmatrix_trunc_nv16x8_amd16x16 : DefaultAttrsIntrinsic<
-  [llvm_v4f32_ty], [llvm_v8f32_ty],
+  [llvm_v4i32_ty], [llvm_v8f32_ty],
   [IntrNoMem, IntrConvergent]
 >;
 

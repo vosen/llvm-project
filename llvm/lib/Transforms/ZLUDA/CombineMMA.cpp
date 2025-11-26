@@ -137,8 +137,12 @@ Value *MMACombiner::combineC(IRBuilder<> &Builder, Value *FirstC,
   auto *SecondExtract = dyn_cast<ExtractValueInst>(SecondC);
   if (FirstExtract != nullptr && SecondExtract != nullptr) {
     auto *FirstAggregate = FirstExtract->getAggregateOperand();
+    auto FirstIndices = FirstExtract->getIndices();
     auto *SecondAggregate = SecondExtract->getAggregateOperand();
-    if (FirstAggregate == SecondAggregate) {
+    auto SecondIndices = SecondExtract->getIndices();
+    if (FirstAggregate == SecondAggregate &&
+        FirstIndices == ArrayRef<unsigned>{0} &&
+        SecondIndices == ArrayRef<unsigned>{1}) {
       if (auto *II = dyn_cast<IntrinsicInst>(FirstAggregate)) {
         if (II->getIntrinsicID() ==
             Intrinsic::zluda_dmatrix_split_nv16x8_amd16x16) {
@@ -151,10 +155,10 @@ Value *MMACombiner::combineC(IRBuilder<> &Builder, Value *FirstC,
     }
   }
 
-  auto V8F32Ty = VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false);
+  auto V8I32Ty = VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false);
 
   return Builder.CreateIntrinsic(
-      V8F32Ty, Intrinsic::zluda_cmatrix_concatenate_amd16x16_nv16x8,
+      V8I32Ty, Intrinsic::zluda_cmatrix_concatenate_amd16x16_nv16x8,
       {FirstC, SecondC});
 }
 
@@ -179,7 +183,8 @@ Value *MMACombiner::convertC(IRBuilder<> &Builder, Value *C) {
 // instruction.
 bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second,
                              llvm::Intrinsic::ID IID) {
-  assert(First->getIntrinsicID() == Second->getIntrinsicID() == IID);
+  assert(First->getIntrinsicID() == IID &&
+         First->getIntrinsicID() == Second->getIntrinsicID());
   Value *FirstA = First->getArgOperand(0);
   Value *FirstB = First->getArgOperand(1);
   Value *FirstC = First->getArgOperand(2);
@@ -203,10 +208,13 @@ bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second,
   // be reordered later.
   IRBuilder<> Builder(First);
 
-  llvm::CallInst *Split;
+  llvm::Value *Split;
   if (IID == Intrinsic::zluda_mma_m16n8k16_f32_bf16_bf16_f32) {
+    auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
+    auto V4I32x2Ty = StructType::get(Builder.getContext(), {V4I32Ty, V4I32Ty});
     auto V4F32Ty = VectorType::get(Builder.getFloatTy(), 4, /*Scalable=*/false);
     auto V4F32x2Ty = StructType::get(Builder.getContext(), {V4F32Ty, V4F32Ty});
+    auto V8I32Ty = VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false);
     auto V8F32Ty = VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false);
     auto V16I16Ty =
         VectorType::get(Builder.getInt16Ty(), 16, /*Scalable=*/false);
@@ -216,13 +224,18 @@ bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second,
     auto CombinedB = Builder.CreateIntrinsic(
         V16I16Ty, Intrinsic::zluda_bmatrix_concatenate_amd16x16_nv16x8,
         {FirstB, SecondB});
-    auto CombinedC = combineC(Builder, FirstC, SecondC);
+    auto *FirstCBitCast = Builder.CreateBitCast(FirstC, V4I32Ty);
+    auto *SecondCBitCast = Builder.CreateBitCast(SecondC, V4I32Ty);
+    auto CombinedC = combineC(Builder, FirstCBitCast, SecondCBitCast);
+    auto CombinedCBitCast = Builder.CreateBitCast(CombinedC, V8F32Ty);
 
     auto *Result = Builder.CreateIntrinsic(
         V8F32Ty, Intrinsic::amdgcn_wmma_f32_16x16x16_bf16,
-        {ShuffledA, CombinedB, CombinedC});
+        {ShuffledA, CombinedB, CombinedCBitCast});
+    auto *ResultBitCast = Builder.CreateBitCast(Result, V8I32Ty);
     Split = Builder.CreateIntrinsic(
-        V4F32x2Ty, Intrinsic::zluda_dmatrix_split_nv16x8_amd16x16, {Result});
+        V4I32x2Ty, Intrinsic::zluda_dmatrix_split_nv16x8_amd16x16,
+        {ResultBitCast});
   } else if (IID == Intrinsic::zluda_mma_m16n8k32_s32_s8_s8_s32) {
     auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
     auto V4I32x2Ty = StructType::get(Builder.getContext(), {V4I32Ty, V4I32Ty});
@@ -279,6 +292,7 @@ void MMACombiner::lowerMMA(IntrinsicInst *MMA) {
 
   IRBuilder<> Builder(MMA);
 
+  auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
   auto V4F32Ty = VectorType::get(Builder.getFloatTy(), 4, /*Scalable=*/false);
   auto V8F32Ty = VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false);
   auto V16I16Ty = VectorType::get(Builder.getInt16Ty(), 16, /*Scalable=*/false);
@@ -293,7 +307,7 @@ void MMACombiner::lowerMMA(IntrinsicInst *MMA) {
       Builder.CreateIntrinsic(V8F32Ty, Intrinsic::amdgcn_wmma_f32_16x16x16_bf16,
                               {ShuffledA, ShuffledB, ShuffledC});
   auto *Truncated = Builder.CreateIntrinsic(
-      V4F32Ty, Intrinsic::zluda_dmatrix_trunc_nv16x8_amd16x16, {Result});
+      V4I32Ty, Intrinsic::zluda_dmatrix_trunc_nv16x8_amd16x16, {Result});
 
   MMA->replaceAllUsesWith(Truncated);
   MMA->eraseFromParent();
