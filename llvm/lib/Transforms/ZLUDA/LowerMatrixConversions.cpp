@@ -325,7 +325,7 @@ Value *LowerMatrixConversions::cMatrixConcatenate(IRBuilder<> &Builder,
   Value *Lane = getLaneNumber();
 
   Value *AMDFragment = PoisonValue::get(
-      VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false));
+      VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false));
 
   for (uint32_t vGPR = 0; vGPR < 8; ++vGPR) {
     auto [Row, Column] = getLogicalCoordinatesForCMatrixAMDPhysicalCoordinates(
@@ -381,7 +381,7 @@ Value *LowerMatrixConversions::dMatrixSplit(IRBuilder<> &Builder,
   Value *Lane = getLaneNumber();
 
   Value *NVFragmentFirst = PoisonValue::get(
-      VectorType::get(Builder.getFloatTy(), 4, /*Scalable=*/false));
+      VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false));
 
   for (uint32_t cChunk = 0; cChunk < 4; ++cChunk) {
     auto [Row, ColumnFirst] =
@@ -452,7 +452,7 @@ Value *LowerMatrixConversions::dMatrixSplit(IRBuilder<> &Builder,
   }
 
   Value *NVFragmentSecond = PoisonValue::get(
-      VectorType::get(Builder.getFloatTy(), 4, /*Scalable=*/false));
+      VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false));
 
   for (uint32_t cChunk = 0; cChunk < 4; ++cChunk) {
     auto [Row, ColumnFirst] =
@@ -548,8 +548,11 @@ void LowerMatrixConversions::lowerConversion(IntrinsicInst *Conversion) {
   }
   case Intrinsic::zluda_cmatrix_zext_amd16x16_nv16x8: {
     Value *NVMatrix = Conversion->getArgOperand(0);
-    Conversion->replaceAllUsesWith(cMatrixConcatenate(
-        Builder, NVMatrix, ConstantAggregateZero::get(NVMatrix->getType())));
+    auto CMatrix = cMatrixConcatenate(
+        Builder, NVMatrix, ConstantAggregateZero::get(NVMatrix->getType()));
+    auto CMatrixBitCast = Builder.CreateBitCast(
+        CMatrix, VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false));
+    Conversion->replaceAllUsesWith(CMatrixBitCast);
     Conversion->eraseFromParent();
     break;
   }
@@ -563,8 +566,11 @@ void LowerMatrixConversions::lowerConversion(IntrinsicInst *Conversion) {
   }
   case Intrinsic::zluda_dmatrix_trunc_nv16x8_amd16x16: {
     Value *AMDMatrix = Conversion->getArgOperand(0);
+    auto AMDMatrixBitCast = Builder.CreateBitCast(
+        AMDMatrix,
+        VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false));
     Conversion->replaceAllUsesWith(
-        dMatrixSplit(Builder, AMDMatrix, /*Truncate=*/true));
+        dMatrixSplit(Builder, AMDMatrixBitCast, /*Truncate=*/true));
     Conversion->eraseFromParent();
     break;
   }
