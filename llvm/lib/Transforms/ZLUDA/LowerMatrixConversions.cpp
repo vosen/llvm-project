@@ -160,6 +160,8 @@ static IntrinsicInst *getMatrixConversion(Instruction &I) {
     case Intrinsic::zluda_bmatrix_concatenate_amd16x16_nv16x8:
     case Intrinsic::zluda_cmatrix_concatenate_amd16x16_nv16x8:
     case Intrinsic::zluda_dmatrix_split_nv16x8_amd16x16:
+    case Intrinsic::zluda_amatrix_split_amd16x16_nv16x32:
+    case Intrinsic::zluda_bmatrix_reshape_amd16x16_nv32x8:
       return II;
     }
   }
@@ -191,6 +193,8 @@ private:
   void lowerConversion(IntrinsicInst *Conversion);
 
   Value *aMatrixConvert(IRBuilder<> &Builder, Value *NVFragment);
+  Value *aMatrixConvertI8Half(IRBuilder<> &Builder, Value *NVLowReg,
+                              Value *NVHighReg);
   Value *bMatrixConcatenate(IRBuilder<> &Builder, Value *NVFragmentFirst,
                             Value *NVFragmentSecond);
   Value *cMatrixConcatenate(IRBuilder<> &Builder, Value *NVFragmentFirst,
@@ -263,6 +267,27 @@ Value *LowerMatrixConversions::aMatrixConvert(IRBuilder<> &Builder,
     AMDFragment = Builder.CreateInsertElement(AMDFragment, Top16, 2 * vGPR + 1);
   }
 
+  return AMDFragment;
+}
+
+Value *LowerMatrixConversions::aMatrixConvertI8Half(IRBuilder<> &Builder,
+                                                    Value *NvLowReg,
+                                                    Value *NvHighReg) {
+  Value *Lane = getLaneNumber();
+  Value *QuarterLane = Builder.CreateAnd(Lane, 7, "quarter.lane");
+  Value *HalfLane = Builder.CreateAnd(Lane, 15, "half.lane");
+  Value *AMDFragment = PoisonValue::get(
+      VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false));
+  Value *SrcNvReg =
+      Builder.CreateSelect(Builder.CreateICmpULT(HalfLane, Builder.getInt32(8)),
+                           NvLowReg, NvHighReg, "src.reg");
+  for (uint32_t vGPR = 0; vGPR < 4; ++vGPR) {
+    Value *SrcThread = Builder.CreateAdd(
+        Builder.CreateMul(QuarterLane, Builder.getInt32(4), "src.thread"),
+        Builder.getInt32(vGPR), "src.thread");
+    Value *APermuted = bpermuteLane(Builder, SrcThread, SrcNvReg, "a.permuted");
+    AMDFragment = Builder.CreateInsertElement(AMDFragment, APermuted, vGPR);
+  }
   return AMDFragment;
 }
 
@@ -579,6 +604,26 @@ void LowerMatrixConversions::lowerConversion(IntrinsicInst *Conversion) {
     Conversion->replaceAllUsesWith(
         dMatrixSplit(Builder, AMDMatrix, /*Truncate=*/false));
     Conversion->eraseFromParent();
+    break;
+  }
+  case Intrinsic::zluda_amatrix_split_amd16x16_nv16x32: {
+    Value *NVMatrix = Conversion->getArgOperand(0);
+    auto *V0 = Builder.CreateExtractElement(NVMatrix, uint64_t(0));
+    auto *V1 = Builder.CreateExtractElement(NVMatrix, uint64_t(1));
+    auto *V2 = Builder.CreateExtractElement(NVMatrix, uint64_t(2));
+    auto *V3 = Builder.CreateExtractElement(NVMatrix, uint64_t(3));
+    auto LowHalf = aMatrixConvertI8Half(Builder, V0, V1);
+    auto HighHalf = aMatrixConvertI8Half(Builder, V2, V3);
+    Type *ReturnTy = StructType::get(LowHalf->getType(), HighHalf->getType());
+    Value *Result = PoisonValue::get(ReturnTy);
+    Result = Builder.CreateInsertValue(Result, LowHalf, 0);
+    Result = Builder.CreateInsertValue(Result, HighHalf, 1);
+    Conversion->replaceAllUsesWith(Result);
+    Conversion->eraseFromParent();
+    break;
+  }
+  case Intrinsic::zluda_bmatrix_reshape_amd16x16_nv32x8: {
+
     break;
   }
   default:
