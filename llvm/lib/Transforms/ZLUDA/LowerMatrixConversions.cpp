@@ -623,7 +623,25 @@ void LowerMatrixConversions::lowerConversion(IntrinsicInst *Conversion) {
     break;
   }
   case Intrinsic::zluda_bmatrix_reshape_amd16x16_nv32x8: {
-
+    Value *LeftNVMatrix = Conversion->getArgOperand(0);
+    Value *RightNVMatrix = Conversion->getArgOperand(1);
+    Value *UpperLeftMatrix =
+        Builder.CreateExtractElement(LeftNVMatrix, uint64_t(0));
+    Value *UpperRightMatrix =
+        Builder.CreateExtractElement(RightNVMatrix, uint64_t(0));
+    Value *LowerLeftMatrix =
+        Builder.CreateExtractElement(LeftNVMatrix, uint64_t(1));
+    Value *LowerRightMatrix =
+        Builder.CreateExtractElement(RightNVMatrix, uint64_t(1));
+    Value *B0 = aMatrixConvertI8Half(Builder, UpperLeftMatrix, UpperRightMatrix);
+    Value *B1 =
+        aMatrixConvertI8Half(Builder, LowerLeftMatrix, LowerRightMatrix);
+    Type *ReturnTy = StructType::get(B0->getType(), B1->getType());
+    Value *Result = PoisonValue::get(ReturnTy);
+    Result = Builder.CreateInsertValue(Result, B0, 0);
+    Result = Builder.CreateInsertValue(Result, B1, 1);
+    Conversion->replaceAllUsesWith(Result);
+    Conversion->eraseFromParent();
     break;
   }
   default:

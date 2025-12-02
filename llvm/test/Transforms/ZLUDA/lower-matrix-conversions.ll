@@ -1572,3 +1572,77 @@ define void @amatrix_split(ptr %amd_d0, ptr %amd_d1, <4 x i32> %nv_d) {
 
   ret void
 }
+
+define void @bmatrix_reshape(ptr %amd_b0, ptr %amd_b1, <2 x i32> %nv_b_left, <2 x i32> %nv_b_right) {
+; CHECK-LABEL: define void @bmatrix_reshape(
+; CHECK-SAME: ptr [[AMD_B0:%.*]], ptr [[AMD_B1:%.*]], <2 x i32> [[NV_B_LEFT:%.*]], <2 x i32> [[NV_B_RIGHT:%.*]]) {
+; CHECK-NEXT:    [[TMP1:%.*]] = call i32 @llvm.amdgcn.mbcnt.lo(i32 -1, i32 0)
+; CHECK-NEXT:    [[TMP2:%.*]] = extractelement <2 x i32> [[NV_B_LEFT]], i64 0
+; CHECK-NEXT:    [[TMP3:%.*]] = extractelement <2 x i32> [[NV_B_RIGHT]], i64 0
+; CHECK-NEXT:    [[TMP4:%.*]] = extractelement <2 x i32> [[NV_B_LEFT]], i64 1
+; CHECK-NEXT:    [[TMP5:%.*]] = extractelement <2 x i32> [[NV_B_RIGHT]], i64 1
+; CHECK-NEXT:    [[QUARTER_LANE:%.*]] = and i32 [[TMP1]], 7
+; CHECK-NEXT:    [[HALF_LANE:%.*]] = and i32 [[TMP1]], 15
+; CHECK-NEXT:    [[TMP6:%.*]] = icmp ult i32 [[HALF_LANE]], 8
+; CHECK-NEXT:    [[SRC_REG:%.*]] = select i1 [[TMP6]], i32 [[TMP2]], i32 [[TMP3]]
+; CHECK-NEXT:    [[SRC_THREAD:%.*]] = mul i32 [[QUARTER_LANE]], 4
+; CHECK-NEXT:    [[SRC_THREAD1:%.*]] = add i32 [[SRC_THREAD]], 0
+; CHECK-NEXT:    [[TMP7:%.*]] = shl i32 [[SRC_THREAD1]], 2
+; CHECK-NEXT:    [[A_PERMUTED:%.*]] = call i32 @llvm.amdgcn.ds.bpermute(i32 [[TMP7]], i32 [[SRC_REG]])
+; CHECK-NEXT:    [[TMP8:%.*]] = insertelement <4 x i32> poison, i32 [[A_PERMUTED]], i64 0
+; CHECK-NEXT:    [[SRC_THREAD2:%.*]] = mul i32 [[QUARTER_LANE]], 4
+; CHECK-NEXT:    [[SRC_THREAD3:%.*]] = add i32 [[SRC_THREAD2]], 1
+; CHECK-NEXT:    [[TMP9:%.*]] = shl i32 [[SRC_THREAD3]], 2
+; CHECK-NEXT:    [[A_PERMUTED4:%.*]] = call i32 @llvm.amdgcn.ds.bpermute(i32 [[TMP9]], i32 [[SRC_REG]])
+; CHECK-NEXT:    [[TMP10:%.*]] = insertelement <4 x i32> [[TMP8]], i32 [[A_PERMUTED4]], i64 1
+; CHECK-NEXT:    [[SRC_THREAD5:%.*]] = mul i32 [[QUARTER_LANE]], 4
+; CHECK-NEXT:    [[SRC_THREAD6:%.*]] = add i32 [[SRC_THREAD5]], 2
+; CHECK-NEXT:    [[TMP11:%.*]] = shl i32 [[SRC_THREAD6]], 2
+; CHECK-NEXT:    [[A_PERMUTED7:%.*]] = call i32 @llvm.amdgcn.ds.bpermute(i32 [[TMP11]], i32 [[SRC_REG]])
+; CHECK-NEXT:    [[TMP12:%.*]] = insertelement <4 x i32> [[TMP10]], i32 [[A_PERMUTED7]], i64 2
+; CHECK-NEXT:    [[SRC_THREAD8:%.*]] = mul i32 [[QUARTER_LANE]], 4
+; CHECK-NEXT:    [[SRC_THREAD9:%.*]] = add i32 [[SRC_THREAD8]], 3
+; CHECK-NEXT:    [[TMP13:%.*]] = shl i32 [[SRC_THREAD9]], 2
+; CHECK-NEXT:    [[A_PERMUTED10:%.*]] = call i32 @llvm.amdgcn.ds.bpermute(i32 [[TMP13]], i32 [[SRC_REG]])
+; CHECK-NEXT:    [[TMP14:%.*]] = insertelement <4 x i32> [[TMP12]], i32 [[A_PERMUTED10]], i64 3
+; CHECK-NEXT:    [[QUARTER_LANE11:%.*]] = and i32 [[TMP1]], 7
+; CHECK-NEXT:    [[HALF_LANE12:%.*]] = and i32 [[TMP1]], 15
+; CHECK-NEXT:    [[TMP15:%.*]] = icmp ult i32 [[HALF_LANE12]], 8
+; CHECK-NEXT:    [[SRC_REG13:%.*]] = select i1 [[TMP15]], i32 [[TMP4]], i32 [[TMP5]]
+; CHECK-NEXT:    [[SRC_THREAD14:%.*]] = mul i32 [[QUARTER_LANE11]], 4
+; CHECK-NEXT:    [[SRC_THREAD15:%.*]] = add i32 [[SRC_THREAD14]], 0
+; CHECK-NEXT:    [[TMP16:%.*]] = shl i32 [[SRC_THREAD15]], 2
+; CHECK-NEXT:    [[A_PERMUTED16:%.*]] = call i32 @llvm.amdgcn.ds.bpermute(i32 [[TMP16]], i32 [[SRC_REG13]])
+; CHECK-NEXT:    [[TMP17:%.*]] = insertelement <4 x i32> poison, i32 [[A_PERMUTED16]], i64 0
+; CHECK-NEXT:    [[SRC_THREAD17:%.*]] = mul i32 [[QUARTER_LANE11]], 4
+; CHECK-NEXT:    [[SRC_THREAD18:%.*]] = add i32 [[SRC_THREAD17]], 1
+; CHECK-NEXT:    [[TMP18:%.*]] = shl i32 [[SRC_THREAD18]], 2
+; CHECK-NEXT:    [[A_PERMUTED19:%.*]] = call i32 @llvm.amdgcn.ds.bpermute(i32 [[TMP18]], i32 [[SRC_REG13]])
+; CHECK-NEXT:    [[TMP19:%.*]] = insertelement <4 x i32> [[TMP17]], i32 [[A_PERMUTED19]], i64 1
+; CHECK-NEXT:    [[SRC_THREAD20:%.*]] = mul i32 [[QUARTER_LANE11]], 4
+; CHECK-NEXT:    [[SRC_THREAD21:%.*]] = add i32 [[SRC_THREAD20]], 2
+; CHECK-NEXT:    [[TMP20:%.*]] = shl i32 [[SRC_THREAD21]], 2
+; CHECK-NEXT:    [[A_PERMUTED22:%.*]] = call i32 @llvm.amdgcn.ds.bpermute(i32 [[TMP20]], i32 [[SRC_REG13]])
+; CHECK-NEXT:    [[TMP21:%.*]] = insertelement <4 x i32> [[TMP19]], i32 [[A_PERMUTED22]], i64 2
+; CHECK-NEXT:    [[SRC_THREAD23:%.*]] = mul i32 [[QUARTER_LANE11]], 4
+; CHECK-NEXT:    [[SRC_THREAD24:%.*]] = add i32 [[SRC_THREAD23]], 3
+; CHECK-NEXT:    [[TMP22:%.*]] = shl i32 [[SRC_THREAD24]], 2
+; CHECK-NEXT:    [[A_PERMUTED25:%.*]] = call i32 @llvm.amdgcn.ds.bpermute(i32 [[TMP22]], i32 [[SRC_REG13]])
+; CHECK-NEXT:    [[TMP23:%.*]] = insertelement <4 x i32> [[TMP21]], i32 [[A_PERMUTED25]], i64 3
+; CHECK-NEXT:    [[TMP24:%.*]] = insertvalue { <4 x i32>, <4 x i32> } poison, <4 x i32> [[TMP14]], 0
+; CHECK-NEXT:    [[CONVERTED_B:%.*]] = insertvalue { <4 x i32>, <4 x i32> } [[TMP24]], <4 x i32> [[TMP23]], 1
+; CHECK-NEXT:    [[CONVERTED_B0:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[CONVERTED_B]], 0
+; CHECK-NEXT:    [[CONVERTED_B1:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[CONVERTED_B]], 1
+; CHECK-NEXT:    store <4 x i32> [[CONVERTED_B0]], ptr [[AMD_B0]], align 16
+; CHECK-NEXT:    store <4 x i32> [[CONVERTED_B1]], ptr [[AMD_B1]], align 16
+; CHECK-NEXT:    ret void
+;
+  %converted_b = call { <4 x i32>, <4 x i32> } @llvm.zluda.bmatrix.reshape.amd16x16.nv32x8(<2 x i32> %nv_b_left, <2 x i32> %nv_b_right)
+  %converted_b0 = extractvalue { <4 x i32>, <4 x i32> } %converted_b, 0
+  %converted_b1 = extractvalue { <4 x i32>, <4 x i32> } %converted_b, 1
+
+  store <4 x i32> %converted_b0, ptr %amd_b0
+  store <4 x i32> %converted_b1, ptr %amd_b1
+
+  ret void
+}
