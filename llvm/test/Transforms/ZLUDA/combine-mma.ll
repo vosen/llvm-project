@@ -260,3 +260,51 @@ define void @dont_merge_across_load_store(ptr %d0.result, ptr %d1.result, <4 x i
 
   ret void
 }
+
+
+define void @combine_interleaved(ptr %d0.result, ptr %d1.result, ptr %d2.result, ptr %d3.result, <4 x i32> %a0, <4 x i32> %a1, <2 x i32> %b0, <4 x i32> %c0, <2 x i32> %b1, <4 x i32> %c1) {
+; CHECK-LABEL: define void @combine_interleaved(
+; CHECK-SAME: ptr [[D0_RESULT:%.*]], ptr [[D1_RESULT:%.*]], ptr [[D2_RESULT:%.*]], ptr [[D3_RESULT:%.*]], <4 x i32> [[A0:%.*]], <4 x i32> [[A1:%.*]], <2 x i32> [[B0:%.*]], <4 x i32> [[C0:%.*]], <2 x i32> [[B1:%.*]], <4 x i32> [[C1:%.*]]) {
+; CHECK-NEXT:    [[TMP1:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.amatrix.split.amd16x16.nv16x32(<4 x i32> [[A0]])
+; CHECK-NEXT:    [[TMP2:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.bmatrix.reshape.amd16x16.nv32x8(<2 x i32> [[B0]], <2 x i32> [[B1]])
+; CHECK-NEXT:    [[TMP3:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C0]], <4 x i32> [[C1]])
+; CHECK-NEXT:    [[TMP4:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP1]], 0
+; CHECK-NEXT:    [[TMP5:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP1]], 1
+; CHECK-NEXT:    [[TMP6:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP2]], 0
+; CHECK-NEXT:    [[TMP7:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP2]], 1
+; CHECK-NEXT:    [[TMP8:%.*]] = call <8 x i32> @llvm.amdgcn.wmma.i32.16x16x16.iu8.v8i32.v4i32(i1 true, <4 x i32> [[TMP4]], i1 true, <4 x i32> [[TMP6]], <8 x i32> [[TMP3]], i1 false)
+; CHECK-NEXT:    [[TMP9:%.*]] = call <8 x i32> @llvm.amdgcn.wmma.i32.16x16x16.iu8.v8i32.v4i32(i1 true, <4 x i32> [[TMP5]], i1 true, <4 x i32> [[TMP7]], <8 x i32> [[TMP8]], i1 false)
+; CHECK-NEXT:    [[TMP10:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.dmatrix.split.nv16x8.amd16x16(<8 x i32> [[TMP9]])
+; CHECK-NEXT:    [[TMP11:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP10]], 0
+; CHECK-NEXT:    [[TMP12:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP10]], 1
+; CHECK-NEXT:    [[TMP13:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.amatrix.split.amd16x16.nv16x32(<4 x i32> [[A1]])
+; CHECK-NEXT:    [[TMP14:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.bmatrix.reshape.amd16x16.nv32x8(<2 x i32> [[B0]], <2 x i32> [[B1]])
+; CHECK-NEXT:    [[TMP15:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C0]], <4 x i32> [[C1]])
+; CHECK-NEXT:    [[TMP16:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP13]], 0
+; CHECK-NEXT:    [[TMP17:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP13]], 1
+; CHECK-NEXT:    [[TMP18:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP14]], 0
+; CHECK-NEXT:    [[TMP19:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP14]], 1
+; CHECK-NEXT:    [[TMP20:%.*]] = call <8 x i32> @llvm.amdgcn.wmma.i32.16x16x16.iu8.v8i32.v4i32(i1 true, <4 x i32> [[TMP16]], i1 true, <4 x i32> [[TMP18]], <8 x i32> [[TMP15]], i1 false)
+; CHECK-NEXT:    [[TMP21:%.*]] = call <8 x i32> @llvm.amdgcn.wmma.i32.16x16x16.iu8.v8i32.v4i32(i1 true, <4 x i32> [[TMP17]], i1 true, <4 x i32> [[TMP19]], <8 x i32> [[TMP20]], i1 false)
+; CHECK-NEXT:    [[TMP22:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.dmatrix.split.nv16x8.amd16x16(<8 x i32> [[TMP21]])
+; CHECK-NEXT:    [[TMP23:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP22]], 0
+; CHECK-NEXT:    [[TMP24:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP22]], 1
+; CHECK-NEXT:    store <4 x i32> [[TMP11]], ptr [[D0_RESULT]], align 16
+; CHECK-NEXT:    store <4 x i32> [[TMP23]], ptr [[D1_RESULT]], align 16
+; CHECK-NEXT:    store <4 x i32> [[TMP24]], ptr [[D2_RESULT]], align 16
+; CHECK-NEXT:    store <4 x i32> [[TMP12]], ptr [[D3_RESULT]], align 16
+; CHECK-NEXT:    ret void
+;
+
+  %d0 = call <4 x i32> @llvm.zluda.mma.m16n8k32.s32.s8.s8.s32(<4 x i32> %a0, <2 x i32> %b0, <4 x i32> %c0)
+  %d1 = call <4 x i32> @llvm.zluda.mma.m16n8k32.s32.s8.s8.s32(<4 x i32> %a1, <2 x i32> %b0, <4 x i32> %c0)
+  %d2 = call <4 x i32> @llvm.zluda.mma.m16n8k32.s32.s8.s8.s32(<4 x i32> %a1, <2 x i32> %b1, <4 x i32> %c1)
+  %d3 = call <4 x i32> @llvm.zluda.mma.m16n8k32.s32.s8.s8.s32(<4 x i32> %a0, <2 x i32> %b1, <4 x i32> %c1)
+
+  store <4 x i32> %d0, ptr %d0.result
+  store <4 x i32> %d1, ptr %d1.result
+  store <4 x i32> %d2, ptr %d2.result
+  store <4 x i32> %d3, ptr %d3.result
+
+  ret void
+}

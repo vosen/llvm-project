@@ -116,10 +116,8 @@ public:
 
 private:
   bool combineBB(BasicBlock &BB);
-  bool combineMMAs(SmallVectorImpl<IntrinsicInst *> &MMAs,
-                   llvm::Intrinsic::ID IID);
-  bool combineMMA(IntrinsicInst *First, IntrinsicInst *Second,
-                  llvm::Intrinsic::ID IID);
+  bool combineMMAs(SmallVectorImpl<IntrinsicInst *> &MMAs);
+  bool combineMMA(IntrinsicInst *First, IntrinsicInst *Second);
 
   void lowerMMA(IntrinsicInst *MMA);
 
@@ -181,10 +179,8 @@ Value *MMACombiner::convertC(IRBuilder<> &Builder, Value *C) {
 
 // Combine two NVIDIA-style 16x8 MMA instructions into one AMD-style 16x16 MMA
 // instruction.
-bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second,
-                             llvm::Intrinsic::ID IID) {
-  assert(First->getIntrinsicID() == IID &&
-         First->getIntrinsicID() == Second->getIntrinsicID());
+bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second) {
+  assert(First->getIntrinsicID() == Second->getIntrinsicID());
   Value *FirstA = First->getArgOperand(0);
   Value *FirstB = First->getArgOperand(1);
   Value *FirstC = First->getArgOperand(2);
@@ -209,7 +205,7 @@ bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second,
   IRBuilder<> Builder(First);
 
   llvm::Value *Split;
-  if (IID == Intrinsic::zluda_mma_m16n8k16_f32_bf16_bf16_f32) {
+  if (First->getIntrinsicID() == Intrinsic::zluda_mma_m16n8k16_f32_bf16_bf16_f32) {
     auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
     auto V4I32x2Ty = StructType::get(Builder.getContext(), {V4I32Ty, V4I32Ty});
     auto V4F32Ty = VectorType::get(Builder.getFloatTy(), 4, /*Scalable=*/false);
@@ -236,7 +232,7 @@ bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second,
     Split = Builder.CreateIntrinsic(
         V4I32x2Ty, Intrinsic::zluda_dmatrix_split_nv16x8_amd16x16,
         {ResultBitCast});
-  } else if (IID == Intrinsic::zluda_mma_m16n8k32_s32_s8_s8_s32) {
+  } else if (First->getIntrinsicID() == Intrinsic::zluda_mma_m16n8k32_s32_s8_s8_s32) {
     auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
     auto V4I32x2Ty = StructType::get(Builder.getContext(), {V4I32Ty, V4I32Ty});
     auto V8I32Ty = VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false);
@@ -313,31 +309,32 @@ void MMACombiner::lowerMMA(IntrinsicInst *MMA) {
   MMA->eraseFromParent();
 }
 
-bool MMACombiner::combineMMAs(SmallVectorImpl<IntrinsicInst *> &MMAs,
-                              llvm::Intrinsic::ID IID) {
-  bool Modified = false;
+bool MMACombiner::combineMMAs(SmallVectorImpl<IntrinsicInst *> &MMAs) {
+  bool Modified = !MMAs.empty();
 
-  IntrinsicInst *PrevMMA = nullptr;
+  llvm::DenseMap<std::pair<llvm::Intrinsic::ID, llvm::Value *>, IntrinsicInst *>
+      UncombinedMMAs;
 
   for (IntrinsicInst *MMA : MMAs) {
-    if (PrevMMA != nullptr) {
-      // Try to combine PrevMMA with current MMA.
-      if (combineMMA(PrevMMA, MMA, IID)) {
-        Modified = true;
-        PrevMMA = nullptr;
-        continue;
+    std::pair<llvm::Intrinsic::ID, llvm::Value *> Key{MMA->getIntrinsicID(),
+                                                      MMA->getArgOperand(0)};
+    IntrinsicInst *CompatibleMMA = UncombinedMMAs.lookup(Key);
+    if (CompatibleMMA) {
+      if (combineMMA(CompatibleMMA, MMA)) {
+        UncombinedMMAs.erase(Key);
+      } else {
+        // If we failed that's likely because the MMA #2 depends on MMA #1.
+        // In that case we lower MMA #1 and keep MMA #2 for future combinations.
+        lowerMMA(CompatibleMMA);
+        UncombinedMMAs.insert_or_assign(Key, MMA);
       }
-
-      // Cannot combine, so lower PrevMMA individually.
-      lowerMMA(PrevMMA);
-      Modified = true;
+    } else {
+      UncombinedMMAs.insert_or_assign(Key, MMA);
     }
-    PrevMMA = MMA;
   }
 
-  if (PrevMMA) {
-    lowerMMA(PrevMMA);
-    Modified = true;
+  for (auto pair : UncombinedMMAs) {
+    lowerMMA(pair.second);
   }
 
   return Modified;
@@ -349,23 +346,23 @@ bool MMACombiner::combineBB(BasicBlock &BB) {
   // individually.
   bool Modified = false;
 
-  SmallVector<IntrinsicInst *> BF16MMAs;
-  SmallVector<IntrinsicInst *> S8MMAs;
+  SmallVector<IntrinsicInst *> MMAs;
 
   for (Instruction &I : BB) {
     auto *BF16MMA = getBF16ZludaMMA(I);
     if (BF16MMA) {
-      BF16MMAs.push_back(BF16MMA);
+      MMAs.push_back(BF16MMA);
+      continue;
     }
     auto *S8MMA = getS8ZludaMMA(I);
     if (S8MMA) {
-      S8MMAs.push_back(S8MMA);
+      MMAs.push_back(S8MMA);
+      continue;
     }
   }
 
   Modified |=
-      combineMMAs(BF16MMAs, Intrinsic::zluda_mma_m16n8k16_f32_bf16_bf16_f32);
-  Modified |= combineMMAs(S8MMAs, Intrinsic::zluda_mma_m16n8k32_s32_s8_s8_s32);
+      combineMMAs(MMAs);
 
   return Modified;
 }
