@@ -633,7 +633,8 @@ void LowerMatrixConversions::lowerConversion(IntrinsicInst *Conversion) {
         Builder.CreateExtractElement(LeftNVMatrix, uint64_t(1));
     Value *LowerRightMatrix =
         Builder.CreateExtractElement(RightNVMatrix, uint64_t(1));
-    Value *B0 = aMatrixConvertI8Half(Builder, UpperLeftMatrix, UpperRightMatrix);
+    Value *B0 =
+        aMatrixConvertI8Half(Builder, UpperLeftMatrix, UpperRightMatrix);
     Value *B1 =
         aMatrixConvertI8Half(Builder, LowerLeftMatrix, LowerRightMatrix);
     Type *ReturnTy = StructType::get(B0->getType(), B1->getType());
