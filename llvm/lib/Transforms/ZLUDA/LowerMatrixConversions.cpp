@@ -2,6 +2,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
+#include "llvm/IR/Module.h"
 #include <utility>
 
 using namespace llvm;
@@ -278,14 +279,17 @@ Value *LowerMatrixConversions::aMatrixConvertI8Half(IRBuilder<> &Builder,
   Value *HalfLane = Builder.CreateAnd(Lane, 15, "half.lane");
   Value *AMDFragment = PoisonValue::get(
       VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false));
-  Value *SrcNvReg =
-      Builder.CreateSelect(Builder.CreateICmpULT(HalfLane, Builder.getInt32(8)),
-                           NvLowReg, NvHighReg, "src.reg");
+
+  Value *UsesLowSrc = Builder.CreateCmp(llvm::CmpInst::ICMP_ULT, HalfLane,
+                                        Builder.getInt32(8), "uses.low.src");
   for (uint32_t vGPR = 0; vGPR < 4; ++vGPR) {
-    Value *SrcThread = Builder.CreateAdd(
-        Builder.CreateMul(QuarterLane, Builder.getInt32(4), "src.thread"),
-        Builder.getInt32(vGPR), "src.thread");
-    Value *APermuted = bpermuteLane(Builder, SrcThread, SrcNvReg, "a.permuted");
+    Value *SrcThread =
+        Builder.CreateAdd(Builder.CreateMul(QuarterLane, Builder.getInt32(4)),
+                          Builder.getInt32(vGPR), "src.thread");
+    Value *APermutedLow = bpermuteLane(Builder, SrcThread, NvLowReg);
+    Value *APermutedHigh = bpermuteLane(Builder, SrcThread, NvHighReg);
+    Value *APermuted =
+        Builder.CreateSelect(UsesLowSrc, APermutedLow, APermutedHigh);
     AMDFragment = Builder.CreateInsertElement(AMDFragment, APermuted, vGPR);
   }
   return AMDFragment;
@@ -347,10 +351,19 @@ Value *LowerMatrixConversions::bMatrixConcatenate(IRBuilder<> &Builder,
 Value *LowerMatrixConversions::cMatrixConcatenate(IRBuilder<> &Builder,
                                                   Value *NVFragmentFirst,
                                                   Value *NVFragmentSecond) {
+  auto *RetTy = VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false);
+
+  if (Constant *C0 = dyn_cast<Constant>(NVFragmentFirst)) {
+    if (Constant *C1 = dyn_cast<Constant>(NVFragmentSecond)) {
+      if (C0->isZeroValue() && C1->isZeroValue()) {
+        return Constant::getNullValue(RetTy);
+      }
+    }
+  }
+
   Value *Lane = getLaneNumber();
 
-  Value *AMDFragment = PoisonValue::get(
-      VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false));
+  Value *AMDFragment = PoisonValue::get(RetTy);
 
   for (uint32_t vGPR = 0; vGPR < 8; ++vGPR) {
     auto [Row, Column] = getLogicalCoordinatesForCMatrixAMDPhysicalCoordinates(

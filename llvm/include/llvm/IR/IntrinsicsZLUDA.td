@@ -22,6 +22,16 @@ def int_zluda_mma_m16n8k32_s32_s8_s8_s32 : DefaultAttrsIntrinsic<
 
 // Successful matrix layout change. We convert inputs and split outputs
 
+// C matrix and D matrix conversion is shared between all fp16,bf16, I8
+def int_zluda_cmatrix_concatenate_amd16x16_nv16x8 : DefaultAttrsIntrinsic<
+  [llvm_v8i32_ty], [llvm_v4i32_ty, llvm_v4i32_ty],
+  [IntrNoMem, IntrConvergent]
+>;
+def int_zluda_dmatrix_split_nv16x8_amd16x16 : DefaultAttrsIntrinsic<
+  [llvm_v4i32_ty, llvm_v4i32_ty], [llvm_v8i32_ty],
+  [IntrNoMem, IntrConvergent]
+>;
+
 // BF16/FP16
 def int_zluda_amatrix_convert_amd_nv16x16 : DefaultAttrsIntrinsic<
   [llvm_v16i16_ty], [llvm_v4i32_ty],
@@ -29,14 +39,6 @@ def int_zluda_amatrix_convert_amd_nv16x16 : DefaultAttrsIntrinsic<
 >;
 def int_zluda_bmatrix_concatenate_amd16x16_nv16x8 : DefaultAttrsIntrinsic<
   [llvm_v16i16_ty], [llvm_v2i32_ty, llvm_v2i32_ty],
-  [IntrNoMem, IntrConvergent]
->;
-def int_zluda_cmatrix_concatenate_amd16x16_nv16x8 : DefaultAttrsIntrinsic<
-  [llvm_v8i32_ty], [llvm_v4i32_ty, llvm_v4i32_ty],
-  [IntrNoMem, IntrConvergent]
->;
-def int_zluda_dmatrix_split_nv16x8_amd16x16 : DefaultAttrsIntrinsic<
-  [llvm_v4i32_ty, llvm_v4i32_ty], [llvm_v8i32_ty],
   [IntrNoMem, IntrConvergent]
 >;
 
