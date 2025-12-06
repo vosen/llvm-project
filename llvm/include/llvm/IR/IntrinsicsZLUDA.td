@@ -68,6 +68,4 @@ def int_zluda_dmatrix_trunc_nv16x8_amd16x16 : DefaultAttrsIntrinsic<
   [IntrNoMem, IntrConvergent]
 >;
 
-// TODO: I8
-
 // TODO: custom classes to reduce code duplication in ZLUDA intrinsics

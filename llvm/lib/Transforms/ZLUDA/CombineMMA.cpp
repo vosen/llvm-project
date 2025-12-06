@@ -119,6 +119,10 @@ private:
   bool combineMMAs(SmallVectorImpl<IntrinsicInst *> &MMAs);
   bool combineMMA(IntrinsicInst *First, IntrinsicInst *Second);
 
+  llvm::Value *EmitAmdMmaI8(llvm::IRBuilder<> &Builder, llvm::Value *FirstA,
+                            llvm::Value *FirstB, llvm::Value *SecondB,
+                            llvm::Value *FirstC, llvm::Value *SecondC);
+
   void lowerMMA(IntrinsicInst *MMA);
 
   Value *combineC(IRBuilder<> &Builder, Value *FirstC, Value *SecondC);
@@ -235,33 +239,7 @@ bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second) {
         {ResultBitCast});
   } else if (First->getIntrinsicID() ==
              Intrinsic::zluda_mma_m16n8k32_s32_s8_s8_s32) {
-    auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
-    auto V4I32x2Ty = StructType::get(Builder.getContext(), {V4I32Ty, V4I32Ty});
-    auto V8I32Ty = VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false);
-
-    auto SplitA = Builder.CreateIntrinsic(
-        V4I32x2Ty, Intrinsic::zluda_amatrix_split_amd16x16_nv16x32, {FirstA});
-    auto ReshapedB = Builder.CreateIntrinsic(
-        V4I32x2Ty, Intrinsic::zluda_bmatrix_reshape_amd16x16_nv32x8,
-        {FirstB, SecondB});
-
-    auto CombinedC = combineC(Builder, FirstC, SecondC);
-    auto A0 = Builder.CreateExtractValue(SplitA, {0});
-    auto A1 = Builder.CreateExtractValue(SplitA, {1});
-    auto B0 = Builder.CreateExtractValue(ReshapedB, {0});
-    auto B1 = Builder.CreateExtractValue(ReshapedB, {1});
-
-    auto True = Builder.getTrue();
-    auto False = Builder.getFalse();
-
-    auto TempD = Builder.CreateIntrinsic(
-        V8I32Ty, Intrinsic::amdgcn_wmma_i32_16x16x16_iu8,
-        {True, A0, True, B0, CombinedC, False});
-    auto D = Builder.CreateIntrinsic(V8I32Ty,
-                                     Intrinsic::amdgcn_wmma_i32_16x16x16_iu8,
-                                     {True, A1, True, B1, TempD, False});
-    Split = Builder.CreateIntrinsic(
-        V4I32x2Ty, Intrinsic::zluda_dmatrix_split_nv16x8_amd16x16, {D});
+    Split = EmitAmdMmaI8(Builder, FirstA, FirstB, SecondB, FirstC, SecondC);
   } else {
     llvm_unreachable("Unsupported MMA intrinsic");
   }
@@ -278,6 +256,40 @@ bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second) {
   return true;
 }
 
+llvm::Value *MMACombiner::EmitAmdMmaI8(llvm::IRBuilder<> &Builder,
+                                       llvm::Value *A, llvm::Value *FirstB,
+                                       llvm::Value *SecondB,
+                                       llvm::Value *FirstC,
+                                       llvm::Value *SecondC) {
+  auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
+  auto V4I32x2Ty = StructType::get(Builder.getContext(), {V4I32Ty, V4I32Ty});
+  auto V8I32Ty = VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false);
+
+  auto SplitA = Builder.CreateIntrinsic(
+      V4I32x2Ty, Intrinsic::zluda_amatrix_split_amd16x16_nv16x32, {A});
+  auto ReshapedB = Builder.CreateIntrinsic(
+      V4I32x2Ty, Intrinsic::zluda_bmatrix_reshape_amd16x16_nv32x8,
+      {FirstB, SecondB});
+
+  auto CombinedC = combineC(Builder, FirstC, SecondC);
+  auto A0 = Builder.CreateExtractValue(SplitA, {0});
+  auto A1 = Builder.CreateExtractValue(SplitA, {1});
+  auto B0 = Builder.CreateExtractValue(ReshapedB, {0});
+  auto B1 = Builder.CreateExtractValue(ReshapedB, {1});
+
+  auto True = Builder.getTrue();
+  auto False = Builder.getFalse();
+
+  auto TempD =
+      Builder.CreateIntrinsic(V8I32Ty, Intrinsic::amdgcn_wmma_i32_16x16x16_iu8,
+                              {True, A0, True, B0, CombinedC, False});
+  auto D =
+      Builder.CreateIntrinsic(V8I32Ty, Intrinsic::amdgcn_wmma_i32_16x16x16_iu8,
+                              {True, A1, True, B1, TempD, False});
+  return Builder.CreateIntrinsic(
+      V4I32x2Ty, Intrinsic::zluda_dmatrix_split_nv16x8_amd16x16, {D});
+}
+
 // Lower an NVIDIA-style 16x8 MMA instruction to an AMD-style 16x16 MMA
 // instruction. The unused part of the matrix is filled with zeroes.
 void MMACombiner::lowerMMA(IntrinsicInst *MMA) {
@@ -288,11 +300,11 @@ void MMACombiner::lowerMMA(IntrinsicInst *MMA) {
 
   IRBuilder<> Builder(MMA);
 
-  llvm::CallInst *Result;
+  llvm::Value *Result;
 
   llvm::Intrinsic::ID IID = MMA->getIntrinsicID();
+  auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
   if (IID == Intrinsic::zluda_mma_m16n8k16_f32_bf16_bf16_f32) {
-    auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
     auto V4F32Ty = VectorType::get(Builder.getFloatTy(), 4, /*Scalable=*/false);
     auto V8F32Ty = VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false);
     auto V16I16Ty =
@@ -310,23 +322,11 @@ void MMACombiner::lowerMMA(IntrinsicInst *MMA) {
     Result = Builder.CreateIntrinsic(
         V4I32Ty, Intrinsic::zluda_dmatrix_trunc_nv16x8_amd16x16, {Output});
   } else if (IID == Intrinsic::zluda_mma_m16n8k32_s32_s8_s8_s32) {
-    auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
-    auto V4F32Ty = VectorType::get(Builder.getFloatTy(), 4, /*Scalable=*/false);
-    auto V8F32Ty = VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false);
-    auto V16I16Ty =
-        VectorType::get(Builder.getInt16Ty(), 16, /*Scalable=*/false);
-
-    auto ShuffledA = Builder.CreateIntrinsic(
-        V16I16Ty, Intrinsic::zluda_amatrix_convert_amd_nv16x16, {A});
-    auto ShuffledB = Builder.CreateIntrinsic(
-        V16I16Ty, Intrinsic::zluda_bmatrix_zext_amd16x16_nv16x8, {B});
-    auto ShuffledC = convertC(Builder, C);
-
-    auto *Output = Builder.CreateIntrinsic(
-        V8F32Ty, Intrinsic::amdgcn_wmma_f32_16x16x16_bf16,
-        {ShuffledA, ShuffledB, ShuffledC});
-    Result = Builder.CreateIntrinsic(
-        V4I32Ty, Intrinsic::zluda_dmatrix_trunc_nv16x8_amd16x16, {Output});
+    auto BPadding = Constant::getNullValue(B->getType());
+    auto CPadding = Constant::getNullValue(C->getType());
+    llvm::Value *DoubleResult =
+        EmitAmdMmaI8(Builder, A, B, BPadding, C, CPadding);
+    Result = Builder.CreateExtractValue(DoubleResult, 0);
   } else {
     llvm_unreachable("Unsupported MMA intrinsic");
   }

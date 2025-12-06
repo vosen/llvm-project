@@ -308,3 +308,10 @@ define void @combine_interleaved(ptr %d0.result, ptr %d1.result, ptr %d2.result,
 
   ret void
 }
+
+
+define void @lower_uncombined_mma_i8(ptr %d.result, <4 x i32> %a, <2 x i32> %b, <4 x i32> %c) {
+  %d = call <4 x i32> @llvm.zluda.mma.m16n8k32.s32.s8.s8.s32(<4 x i32> %a, <2 x i32> %b, <4 x i32> %c)
+  store <4 x i32> %d, ptr %d.result
+  ret void
+}
