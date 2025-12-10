@@ -155,8 +155,6 @@ static IntrinsicInst *getMatrixConversion(Instruction &I) {
   if (II) {
     switch (II->getIntrinsicID()) {
     case Intrinsic::zluda_amatrix_convert_amd_nv16x16:
-    case Intrinsic::zluda_bmatrix_zext_amd16x16_nv16x8:
-    case Intrinsic::zluda_cmatrix_zext_amd16x16_nv16x8:
     case Intrinsic::zluda_dmatrix_trunc_nv16x8_amd16x16:
     case Intrinsic::zluda_bmatrix_concatenate_amd16x16_nv16x8:
     case Intrinsic::zluda_cmatrix_concatenate_amd16x16_nv16x8:
@@ -569,28 +567,11 @@ void LowerMatrixConversions::lowerConversion(IntrinsicInst *Conversion) {
         aMatrixConvert(Builder, Conversion->getArgOperand(0)));
     Conversion->eraseFromParent();
     break;
-  case Intrinsic::zluda_bmatrix_zext_amd16x16_nv16x8: {
-    Value *NVMatrix = Conversion->getArgOperand(0);
-    Conversion->replaceAllUsesWith(bMatrixConcatenate(
-        Builder, NVMatrix, ConstantAggregateZero::get(NVMatrix->getType())));
-    Conversion->eraseFromParent();
-    break;
-  }
   case Intrinsic::zluda_bmatrix_concatenate_amd16x16_nv16x8: {
     Value *NVMatrixFirst = Conversion->getArgOperand(0);
     Value *NVMatrixSecond = Conversion->getArgOperand(1);
     Conversion->replaceAllUsesWith(
         bMatrixConcatenate(Builder, NVMatrixFirst, NVMatrixSecond));
-    Conversion->eraseFromParent();
-    break;
-  }
-  case Intrinsic::zluda_cmatrix_zext_amd16x16_nv16x8: {
-    Value *NVMatrix = Conversion->getArgOperand(0);
-    auto CMatrix = cMatrixConcatenate(
-        Builder, NVMatrix, ConstantAggregateZero::get(NVMatrix->getType()));
-    auto CMatrixBitCast = Builder.CreateBitCast(
-        CMatrix, VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false));
-    Conversion->replaceAllUsesWith(CMatrixBitCast);
     Conversion->eraseFromParent();
     break;
   }
