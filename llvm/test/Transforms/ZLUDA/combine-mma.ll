@@ -311,6 +311,22 @@ define void @combine_interleaved(ptr %d0.result, ptr %d1.result, ptr %d2.result,
 
 
 define void @lower_uncombined_mma_i8(ptr %d.result, <4 x i32> %a, <2 x i32> %b, <4 x i32> %c) {
+; CHECK-LABEL: define void @lower_uncombined_mma_i8(
+; CHECK-SAME: ptr [[D_RESULT:%.*]], <4 x i32> [[A:%.*]], <2 x i32> [[B:%.*]], <4 x i32> [[C:%.*]]) {
+; CHECK-NEXT:    [[TMP1:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.amatrix.split.amd16x16.nv16x32(<4 x i32> [[A]])
+; CHECK-NEXT:    [[TMP2:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.bmatrix.reshape.amd16x16.nv32x8(<2 x i32> [[B]], <2 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP3:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C]], <4 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP4:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP1]], 0
+; CHECK-NEXT:    [[TMP5:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP1]], 1
+; CHECK-NEXT:    [[TMP6:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP2]], 0
+; CHECK-NEXT:    [[TMP7:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP2]], 1
+; CHECK-NEXT:    [[TMP8:%.*]] = call <8 x i32> @llvm.amdgcn.wmma.i32.16x16x16.iu8.v8i32.v4i32(i1 true, <4 x i32> [[TMP4]], i1 true, <4 x i32> [[TMP6]], <8 x i32> [[TMP3]], i1 false)
+; CHECK-NEXT:    [[TMP9:%.*]] = call <8 x i32> @llvm.amdgcn.wmma.i32.16x16x16.iu8.v8i32.v4i32(i1 true, <4 x i32> [[TMP5]], i1 true, <4 x i32> [[TMP7]], <8 x i32> [[TMP8]], i1 false)
+; CHECK-NEXT:    [[TMP10:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.dmatrix.split.nv16x8.amd16x16(<8 x i32> [[TMP9]])
+; CHECK-NEXT:    [[TMP11:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP10]], 0
+; CHECK-NEXT:    store <4 x i32> [[TMP11]], ptr [[D_RESULT]], align 16
+; CHECK-NEXT:    ret void
+;
   %d = call <4 x i32> @llvm.zluda.mma.m16n8k32.s32.s8.s8.s32(<4 x i32> %a, <2 x i32> %b, <4 x i32> %c)
   store <4 x i32> %d, ptr %d.result
   ret void
