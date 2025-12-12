@@ -5,8 +5,9 @@ define void @single_call(ptr %d.result, <4 x i32> %a, <2 x i32> %b, <4 x i32> %c
 ; CHECK-LABEL: define void @single_call(
 ; CHECK-SAME: ptr [[D_RESULT:%.*]], <4 x i32> [[A:%.*]], <2 x i32> [[B:%.*]], <4 x i32> [[C:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16(<4 x i32> [[A]])
-; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8(<2 x i32> [[B]])
-; CHECK-NEXT:    [[TMP3:%.*]] = call <8 x float> @llvm.zluda.cmatrix.zext.amd16x16.nv16x8(<4 x i32> [[C]])
+; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8(<2 x i32> [[B]], <2 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP6:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C]], <4 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP3:%.*]] = bitcast <8 x i32> [[TMP6]] to <8 x float>
 ; CHECK-NEXT:    [[TMP4:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> [[TMP1]], <16 x i16> [[TMP2]], <8 x float> [[TMP3]])
 ; CHECK-NEXT:    [[TMP5:%.*]] = call <4 x i32> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> [[TMP4]])
 ; CHECK-NEXT:    store <4 x i32> [[TMP5]], ptr [[D_RESULT]], align 16
@@ -21,13 +22,15 @@ define void @no_shared_a(ptr %d0.result, ptr %d1.result, <4 x i32> %a0, <2 x i32
 ; CHECK-LABEL: define void @no_shared_a(
 ; CHECK-SAME: ptr [[D0_RESULT:%.*]], ptr [[D1_RESULT:%.*]], <4 x i32> [[A0:%.*]], <2 x i32> [[B0:%.*]], <4 x i32> [[C0:%.*]], <4 x i32> [[A1:%.*]], <2 x i32> [[B1:%.*]], <4 x i32> [[C1:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16(<4 x i32> [[A0]])
-; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8(<2 x i32> [[B0]])
-; CHECK-NEXT:    [[TMP3:%.*]] = call <8 x float> @llvm.zluda.cmatrix.zext.amd16x16.nv16x8(<4 x i32> [[C0]])
+; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8(<2 x i32> [[B0]], <2 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP11:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C0]], <4 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP3:%.*]] = bitcast <8 x i32> [[TMP11]] to <8 x float>
 ; CHECK-NEXT:    [[TMP4:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> [[TMP1]], <16 x i16> [[TMP2]], <8 x float> [[TMP3]])
 ; CHECK-NEXT:    [[TMP5:%.*]] = call <4 x i32> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> [[TMP4]])
 ; CHECK-NEXT:    [[TMP6:%.*]] = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16(<4 x i32> [[A1]])
-; CHECK-NEXT:    [[TMP7:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8(<2 x i32> [[B1]])
-; CHECK-NEXT:    [[TMP8:%.*]] = call <8 x float> @llvm.zluda.cmatrix.zext.amd16x16.nv16x8(<4 x i32> [[C1]])
+; CHECK-NEXT:    [[TMP7:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8(<2 x i32> [[B1]], <2 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP12:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C1]], <4 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP8:%.*]] = bitcast <8 x i32> [[TMP12]] to <8 x float>
 ; CHECK-NEXT:    [[TMP9:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> [[TMP6]], <16 x i16> [[TMP7]], <8 x float> [[TMP8]])
 ; CHECK-NEXT:    [[TMP10:%.*]] = call <4 x i32> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> [[TMP9]])
 ; CHECK-NEXT:    store <4 x i32> [[TMP5]], ptr [[D0_RESULT]], align 16
@@ -47,12 +50,13 @@ define void @dependency(ptr %d0.result, ptr %d1.result, <4 x i32> %a0, <2 x i32>
 ; CHECK-LABEL: define void @dependency(
 ; CHECK-SAME: ptr [[D0_RESULT:%.*]], ptr [[D1_RESULT:%.*]], <4 x i32> [[A0:%.*]], <2 x i32> [[B0:%.*]], <4 x i32> [[C0:%.*]], <2 x i32> [[B1:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16(<4 x i32> [[A0]])
-; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8(<2 x i32> [[B0]])
-; CHECK-NEXT:    [[TMP3:%.*]] = call <8 x float> @llvm.zluda.cmatrix.zext.amd16x16.nv16x8(<4 x i32> [[C0]])
+; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8(<2 x i32> [[B0]], <2 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP10:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C0]], <4 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP3:%.*]] = bitcast <8 x i32> [[TMP10]] to <8 x float>
 ; CHECK-NEXT:    [[TMP4:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> [[TMP1]], <16 x i16> [[TMP2]], <8 x float> [[TMP3]])
 ; CHECK-NEXT:    [[TMP5:%.*]] = call <4 x i32> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> [[TMP4]])
 ; CHECK-NEXT:    [[TMP6:%.*]] = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16(<4 x i32> [[A0]])
-; CHECK-NEXT:    [[TMP7:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8(<2 x i32> [[B1]])
+; CHECK-NEXT:    [[TMP7:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8(<2 x i32> [[B1]], <2 x i32> zeroinitializer)
 ; CHECK-NEXT:    [[TMP8:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> [[TMP6]], <16 x i16> [[TMP7]], <8 x float> [[TMP4]])
 ; CHECK-NEXT:    [[TMP9:%.*]] = call <4 x i32> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> [[TMP8]])
 ; CHECK-NEXT:    store <4 x i32> [[TMP5]], ptr [[D0_RESULT]], align 16
@@ -72,12 +76,13 @@ define void @zext_trunc_elimination(ptr %d0.result, ptr %d1.result, <4 x i32> %a
 ; CHECK-LABEL: define void @zext_trunc_elimination(
 ; CHECK-SAME: ptr [[D0_RESULT:%.*]], ptr [[D1_RESULT:%.*]], <4 x i32> [[A0:%.*]], <2 x i32> [[B0:%.*]], <4 x i32> [[C0:%.*]], <2 x i32> [[B1:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16(<4 x i32> [[A0]])
-; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8(<2 x i32> [[B0]])
-; CHECK-NEXT:    [[TMP3:%.*]] = call <8 x float> @llvm.zluda.cmatrix.zext.amd16x16.nv16x8(<4 x i32> [[C0]])
+; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8(<2 x i32> [[B0]], <2 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP10:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C0]], <4 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP3:%.*]] = bitcast <8 x i32> [[TMP10]] to <8 x float>
 ; CHECK-NEXT:    [[TMP4:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> [[TMP1]], <16 x i16> [[TMP2]], <8 x float> [[TMP3]])
 ; CHECK-NEXT:    [[TMP5:%.*]] = call <4 x i32> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> [[TMP4]])
 ; CHECK-NEXT:    [[TMP6:%.*]] = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16(<4 x i32> [[A0]])
-; CHECK-NEXT:    [[TMP7:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8(<2 x i32> [[B1]])
+; CHECK-NEXT:    [[TMP7:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8(<2 x i32> [[B1]], <2 x i32> zeroinitializer)
 ; CHECK-NEXT:    [[TMP8:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> [[TMP6]], <16 x i16> [[TMP7]], <8 x float> [[TMP4]])
 ; CHECK-NEXT:    [[TMP9:%.*]] = call <4 x i32> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> [[TMP8]])
 ; CHECK-NEXT:    store <4 x i32> [[TMP5]], ptr [[D0_RESULT]], align 16
@@ -236,15 +241,17 @@ define void @dont_merge_across_load_store(ptr %d0.result, ptr %d1.result, <4 x i
 ; CHECK-LABEL: define void @dont_merge_across_load_store(
 ; CHECK-SAME: ptr [[D0_RESULT:%.*]], ptr [[D1_RESULT:%.*]], <4 x i32> [[A:%.*]], <2 x i32> [[B0:%.*]], <4 x i32> [[C0:%.*]], <4 x i32> [[C1:%.*]], ptr [[DEPENDENCY:%.*]]) {
 ; CHECK-NEXT:    [[TMP1:%.*]] = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16(<4 x i32> [[A]])
-; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8(<2 x i32> [[B0]])
-; CHECK-NEXT:    [[TMP3:%.*]] = call <8 x float> @llvm.zluda.cmatrix.zext.amd16x16.nv16x8(<4 x i32> [[C0]])
+; CHECK-NEXT:    [[TMP2:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8(<2 x i32> [[B0]], <2 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP11:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C0]], <4 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP3:%.*]] = bitcast <8 x i32> [[TMP11]] to <8 x float>
 ; CHECK-NEXT:    [[TMP4:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> [[TMP1]], <16 x i16> [[TMP2]], <8 x float> [[TMP3]])
 ; CHECK-NEXT:    [[TMP5:%.*]] = call <4 x i32> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> [[TMP4]])
 ; CHECK-NEXT:    store <4 x i32> [[TMP5]], ptr [[DEPENDENCY]], align 16
 ; CHECK-NEXT:    [[B1:%.*]] = load <2 x i32>, ptr [[DEPENDENCY]], align 8
 ; CHECK-NEXT:    [[TMP6:%.*]] = call <16 x i16> @llvm.zluda.amatrix.convert.amd.nv16x16(<4 x i32> [[A]])
-; CHECK-NEXT:    [[TMP7:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.zext.amd16x16.nv16x8(<2 x i32> [[B1]])
-; CHECK-NEXT:    [[TMP8:%.*]] = call <8 x float> @llvm.zluda.cmatrix.zext.amd16x16.nv16x8(<4 x i32> [[C1]])
+; CHECK-NEXT:    [[TMP7:%.*]] = call <16 x i16> @llvm.zluda.bmatrix.concatenate.amd16x16.nv16x8(<2 x i32> [[B1]], <2 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP12:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C1]], <4 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP8:%.*]] = bitcast <8 x i32> [[TMP12]] to <8 x float>
 ; CHECK-NEXT:    [[TMP9:%.*]] = call <8 x float> @llvm.amdgcn.wmma.f32.16x16x16.bf16.v8f32.v16i16(<16 x i16> [[TMP6]], <16 x i16> [[TMP7]], <8 x float> [[TMP8]])
 ; CHECK-NEXT:    [[TMP10:%.*]] = call <4 x i32> @llvm.zluda.dmatrix.trunc.nv16x8.amd16x16(<8 x float> [[TMP9]])
 ; CHECK-NEXT:    store <4 x i32> [[TMP5]], ptr [[D0_RESULT]], align 16
@@ -311,6 +318,22 @@ define void @combine_interleaved(ptr %d0.result, ptr %d1.result, ptr %d2.result,
 
 
 define void @lower_uncombined_mma_i8(ptr %d.result, <4 x i32> %a, <2 x i32> %b, <4 x i32> %c) {
+; CHECK-LABEL: define void @lower_uncombined_mma_i8(
+; CHECK-SAME: ptr [[D_RESULT:%.*]], <4 x i32> [[A:%.*]], <2 x i32> [[B:%.*]], <4 x i32> [[C:%.*]]) {
+; CHECK-NEXT:    [[TMP1:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.amatrix.split.amd16x16.nv16x32(<4 x i32> [[A]])
+; CHECK-NEXT:    [[TMP2:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.bmatrix.reshape.amd16x16.nv32x8(<2 x i32> [[B]], <2 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP3:%.*]] = call <8 x i32> @llvm.zluda.cmatrix.concatenate.amd16x16.nv16x8(<4 x i32> [[C]], <4 x i32> zeroinitializer)
+; CHECK-NEXT:    [[TMP4:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP1]], 0
+; CHECK-NEXT:    [[TMP5:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP1]], 1
+; CHECK-NEXT:    [[TMP6:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP2]], 0
+; CHECK-NEXT:    [[TMP7:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP2]], 1
+; CHECK-NEXT:    [[TMP8:%.*]] = call <8 x i32> @llvm.amdgcn.wmma.i32.16x16x16.iu8.v8i32.v4i32(i1 true, <4 x i32> [[TMP4]], i1 true, <4 x i32> [[TMP6]], <8 x i32> [[TMP3]], i1 false)
+; CHECK-NEXT:    [[TMP9:%.*]] = call <8 x i32> @llvm.amdgcn.wmma.i32.16x16x16.iu8.v8i32.v4i32(i1 true, <4 x i32> [[TMP5]], i1 true, <4 x i32> [[TMP7]], <8 x i32> [[TMP8]], i1 false)
+; CHECK-NEXT:    [[TMP10:%.*]] = call { <4 x i32>, <4 x i32> } @llvm.zluda.dmatrix.split.nv16x8.amd16x16(<8 x i32> [[TMP9]])
+; CHECK-NEXT:    [[TMP11:%.*]] = extractvalue { <4 x i32>, <4 x i32> } [[TMP10]], 0
+; CHECK-NEXT:    store <4 x i32> [[TMP11]], ptr [[D_RESULT]], align 16
+; CHECK-NEXT:    ret void
+;
   %d = call <4 x i32> @llvm.zluda.mma.m16n8k32.s32.s8.s8.s32(<4 x i32> %a, <2 x i32> %b, <4 x i32> %c)
   store <4 x i32> %d, ptr %d.result
   ret void

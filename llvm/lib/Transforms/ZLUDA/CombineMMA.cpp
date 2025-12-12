@@ -81,35 +81,6 @@ static IntrinsicInst *getS8ZludaMMA(Instruction &I) {
   return nullptr;
 }
 
-enum class OperandType {
-  F32,
-  BF16,
-  S32,
-  S8,
-};
-
-static OperandType getABOperandType(Intrinsic::ID IID) {
-  switch (IID) {
-  case Intrinsic::zluda_mma_m16n8k16_f32_bf16_bf16_f32:
-    return OperandType::BF16;
-  case Intrinsic::zluda_mma_m16n8k32_s32_s8_s8_s32:
-    return OperandType::S8;
-  default:
-    llvm_unreachable("Unsupported MMA intrinsic");
-  }
-}
-
-static OperandType getCDOperandType(Intrinsic::ID IID) {
-  switch (IID) {
-  case Intrinsic::zluda_mma_m16n8k16_f32_bf16_bf16_f32:
-    return OperandType::F32;
-  case Intrinsic::zluda_mma_m16n8k32_s32_s8_s8_s32:
-    return OperandType::S32;
-  default:
-    llvm_unreachable("Unsupported MMA intrinsic");
-  }
-}
-
 class MMACombiner {
 public:
   bool combine(Function &F);
@@ -175,10 +146,13 @@ Value *MMACombiner::convertC(IRBuilder<> &Builder, Value *C) {
     }
   }
 
+  auto V8I32Ty = VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false);
   auto V8F32Ty = VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false);
 
-  return Builder.CreateIntrinsic(
-      V8F32Ty, Intrinsic::zluda_cmatrix_zext_amd16x16_nv16x8, {C});
+  auto NullC = Constant::getNullValue(C->getType());
+  auto IntResult = Builder.CreateIntrinsic(
+      V8I32Ty, Intrinsic::zluda_cmatrix_concatenate_amd16x16_nv16x8, {C, NullC});
+  return Builder.CreateBitCast(IntResult, V8F32Ty);
 }
 
 // Combine two NVIDIA-style 16x8 MMA instructions into one AMD-style 16x16 MMA
@@ -213,8 +187,6 @@ bool MMACombiner::combineMMA(IntrinsicInst *First, IntrinsicInst *Second) {
       Intrinsic::zluda_mma_m16n8k16_f32_bf16_bf16_f32) {
     auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
     auto V4I32x2Ty = StructType::get(Builder.getContext(), {V4I32Ty, V4I32Ty});
-    auto V4F32Ty = VectorType::get(Builder.getFloatTy(), 4, /*Scalable=*/false);
-    auto V4F32x2Ty = StructType::get(Builder.getContext(), {V4F32Ty, V4F32Ty});
     auto V8I32Ty = VectorType::get(Builder.getInt32Ty(), 8, /*Scalable=*/false);
     auto V8F32Ty = VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false);
     auto V16I16Ty =
@@ -305,15 +277,15 @@ void MMACombiner::lowerMMA(IntrinsicInst *MMA) {
   llvm::Intrinsic::ID IID = MMA->getIntrinsicID();
   auto V4I32Ty = VectorType::get(Builder.getInt32Ty(), 4, /*Scalable=*/false);
   if (IID == Intrinsic::zluda_mma_m16n8k16_f32_bf16_bf16_f32) {
-    auto V4F32Ty = VectorType::get(Builder.getFloatTy(), 4, /*Scalable=*/false);
     auto V8F32Ty = VectorType::get(Builder.getFloatTy(), 8, /*Scalable=*/false);
     auto V16I16Ty =
         VectorType::get(Builder.getInt16Ty(), 16, /*Scalable=*/false);
 
     auto ShuffledA = Builder.CreateIntrinsic(
         V16I16Ty, Intrinsic::zluda_amatrix_convert_amd_nv16x16, {A});
+    auto NullB = Constant::getNullValue(B->getType());
     auto ShuffledB = Builder.CreateIntrinsic(
-        V16I16Ty, Intrinsic::zluda_bmatrix_zext_amd16x16_nv16x8, {B});
+        V16I16Ty, Intrinsic::zluda_bmatrix_concatenate_amd16x16_nv16x8, {B, NullB});
     auto ShuffledC = convertC(Builder, C);
 
     auto *Output = Builder.CreateIntrinsic(
