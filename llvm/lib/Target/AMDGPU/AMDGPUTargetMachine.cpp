@@ -894,7 +894,7 @@ void AMDGPUTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
           PM.addPass(AMDGPUAlwaysInlinePass());
       });
 
-  PB.registerPipelineEarlySimplificationEPCallback(
+  PB.registerOptimizerEarlyEPCallback(
     [](ModulePassManager &PM, OptimizationLevel Level) {
       FunctionPassManager ZludaFPM;
         // TODO: maybe disable combining MMAs and just lower them individually
