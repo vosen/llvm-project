@@ -1602,7 +1602,11 @@ static void readConfigs(opt::InputArgList &args) {
       error(errPrefix + toString(pat.takeError()) + ": " + kv.first);
   }
 
-  cl::ResetAllOptionOccurrences();
+  // This option resets all previously set *LLVM* options, which wipes all
+  // options set in `llvm::cl::ParseCommandLineOptions`
+  // (and `LLVMZludaParseCommandLineOptions`) by the ZLUDA compiler.
+  /// It seems to be only relevant to LTO and since ZLUDA  does not do LTO, we skip it
+  // cl::ResetAllOptionOccurrences();
 
   // Parse LTO options.
   if (auto *arg = args.getLastArg(OPT_plugin_opt_mcpu_eq))
