@@ -2753,8 +2753,7 @@ def : GCNPat <
                         SSrc_i1:$src))
 >;
 
-/*
-This fails anyway on gfx10 with assertion about fp16 support
+let SubtargetPredicate = isGFX8GFX9GFX10 in
 def : GCNPat <
   (bf16 (uint_to_fp i1:$src)),
   (bf16 (EXTRACT_SUBREG 
@@ -2763,7 +2762,6 @@ def : GCNPat <
                          SSrc_i1:$src),
       lo16))
 >;
-*/
 
 let SubtargetPredicate = isGFX11Plus in
 def : GCNPat <
