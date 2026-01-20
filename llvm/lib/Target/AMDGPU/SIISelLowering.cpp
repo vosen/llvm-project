@@ -11736,6 +11736,13 @@ bool llvm::isBoolSGPR(SDValue V) {
   case ISD::OR:
   case ISD::XOR:
     return isBoolSGPR(V.getOperand(0)) && isBoolSGPR(V.getOperand(1));
+  case ISD::SADDO:
+  case ISD::UADDO:
+  case ISD::SSUBO:
+  case ISD::USUBO:
+  case ISD::SMULO:
+  case ISD::UMULO:
+    return V.getResNo() == 1;
   }
   return false;
 }
