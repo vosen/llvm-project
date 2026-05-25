@@ -3174,18 +3174,28 @@ def : GCNPat <
   (bf16 (uint_to_fp i1:$src)),
   (bf16 (EXTRACT_SUBREG 
       (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
-                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.BF16_ONE),
-                         SSrc_i1:$src),
+                        /*src1mod*/(i32 0), /*src1*/(i32 CONST.BF16_ONE),
+                        SSrc_i1:$src),
       lo16))
 >;
 
-let SubtargetPredicate = isGFX11Plus in
-def : GCNPat <
-  (bf16 (uint_to_fp i1:$src)),
-  (bf16 (V_CNDMASK_B16_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
-                           /*src1mod*/(i32 0), /*src1*/(i32 CONST.BF16_ONE),
-                           SSrc_i1:$src))
->;
+let SubtargetPredicate = isGFX11Plus in {
+  let True16Predicate = UseRealTrue16Insts in
+  def : GCNPat <
+    (bf16 (uint_to_fp i1:$src)),
+    (bf16 (V_CNDMASK_B16_t16_e64 /*src0mod*/(i32 0), /*src0*/(i16 0),
+                            /*src1mod*/(i32 0), /*src1*/(i16 CONST.BF16_ONE),
+                            SSrc_i1:$src))
+  >;
+
+  let True16Predicate = UseFakeTrue16Insts in
+  def : GCNPat <
+    (bf16 (uint_to_fp i1:$src)),
+    (bf16 (V_CNDMASK_B16_fake16_e64 /*src0mod*/(i32 0), /*src0*/(i16 0),
+                            /*src1mod*/(i32 0), /*src1*/(i16 CONST.BF16_ONE),
+                            SSrc_i1:$src))
+  >;
+}
 
 def : GCNPat <
   (f32 (sint_to_fp i1:$src)),

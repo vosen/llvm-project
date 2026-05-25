@@ -895,7 +895,8 @@ void AMDGPUTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
       });
 
   PB.registerOptimizerEarlyEPCallback(
-    [](ModulePassManager &PM, OptimizationLevel Level) {
+    [](ModulePassManager &PM, OptimizationLevel Level,
+       ThinOrFullLTOPhase Phase) {
       FunctionPassManager ZludaFPM;
         // TODO: maybe disable combining MMAs and just lower them individually
         // if at O0
