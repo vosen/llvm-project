@@ -556,8 +556,10 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
                      Legal);
   setOperationAction(ISD::FFREXP, {MVT::f32, MVT::f64}, Custom);
 
-  setOperationAction({ISD::FSIN, ISD::FCOS, ISD::FDIV}, MVT::f32, Custom);
-  setOperationAction(ISD::FDIV, MVT::f64, Custom);
+  // ZLUDA changes start
+  setOperationAction({ISD::FSIN, ISD::FCOS, ISD::FDIV, ISD::STRICT_FDIV}, MVT::f32, Custom);
+  setOperationAction({ISD::FDIV, ISD::STRICT_FDIV}, MVT::f64, Custom);
+  // ZLUDA changes end
 
   setOperationAction(ISD::BF16_TO_FP, {MVT::i16, MVT::f32, MVT::f64}, Expand);
   setOperationAction(ISD::FP_TO_BF16, {MVT::i16, MVT::f32, MVT::f64}, Expand);
@@ -6757,6 +6759,9 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::SELECT:
     return LowerSELECT(Op, DAG);
   case ISD::FDIV:
+  // ZLUDA changes start
+  case ISD::STRICT_FDIV:
+  // ZLUDA changes end
     return LowerFDIV(Op, DAG);
   case ISD::FFREXP:
     return LowerFFREXP(Op, DAG);
@@ -12005,8 +12010,20 @@ SDValue SITargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
 SDValue SITargetLowering::lowerFastUnsafeFDIV(SDValue Op,
                                               SelectionDAG &DAG) const {
   SDLoc SL(Op);
-  SDValue LHS = Op.getOperand(0);
-  SDValue RHS = Op.getOperand(1);
+  // ZLUDA changes start
+  SDValue Chain;
+  SDValue LHS;
+  SDValue RHS;
+  bool StrictFP = Op->isStrictFPOpcode();
+  if (StrictFP) {
+    Chain = Op.getOperand(0);
+    LHS = Op.getOperand(1);
+    RHS = Op.getOperand(2);
+  } else {
+    LHS = Op.getOperand(0);
+    RHS = Op.getOperand(1);
+  }
+  // ZLUDA changes end
   EVT VT = Op.getValueType();
   const SDNodeFlags Flags = Op->getFlags();
 
@@ -12032,14 +12049,28 @@ SDValue SITargetLowering::lowerFastUnsafeFDIV(SDValue Op,
       // XXX - Is afn sufficient to do this for f64? The maximum ULP
       // error seems really high at 2^29 ULP.
       // 1.0 / x -> rcp(x)
-      return DAG.getNode(AMDGPUISD::RCP, SL, VT, RHS);
+      // ZLUDA changes start
+      if (StrictFP) {
+        return DAG.getNode(AMDGPUISD::STRICT_RCP, SL, {VT, MVT::Other},
+                           {Chain, RHS});
+      } else {
+        return DAG.getNode(AMDGPUISD::RCP, SL, VT, RHS);
+      }
+      // ZLUDA changes end
     }
 
     // Same as for 1.0, but expand the sign out of the constant.
     if (CLHS->isExactlyValue(-1.0)) {
       // -1.0 / x -> rcp (fneg x)
       SDValue FNegRHS = DAG.getNode(ISD::FNEG, SL, VT, RHS);
-      return DAG.getNode(AMDGPUISD::RCP, SL, VT, FNegRHS);
+      // ZLUDA changes start
+      if (StrictFP) {
+        return DAG.getNode(AMDGPUISD::STRICT_RCP, SL, {VT, MVT::Other},
+                           {Chain, FNegRHS});
+      } else {
+        return DAG.getNode(AMDGPUISD::RCP, SL, VT, FNegRHS);
+      }
+      // ZLUDA changes end
     }
   }
 
@@ -12051,8 +12082,17 @@ SDValue SITargetLowering::lowerFastUnsafeFDIV(SDValue Op,
 
   // Turn into multiply by the reciprocal.
   // x / y -> x * (1.0 / y)
-  SDValue Recip = DAG.getNode(AMDGPUISD::RCP, SL, VT, RHS);
-  return DAG.getNode(ISD::FMUL, SL, VT, LHS, Recip, Flags);
+  // ZLUDA changes start
+  if (StrictFP) {
+    SDValue Recip =
+        DAG.getNode(AMDGPUISD::STRICT_RCP, SL, {VT, MVT::Other}, {Chain, RHS});
+    return DAG.getNode(ISD::STRICT_FMUL, SL, {VT, MVT::Other},
+                       {Recip.getValue(1), LHS, Recip}, Flags);
+  } else {
+    SDValue Recip = DAG.getNode(AMDGPUISD::RCP, SL, VT, RHS);
+    return DAG.getNode(ISD::FMUL, SL, VT, LHS, Recip, Flags);
+  }
+  // ZLUDA changes end
 }
 
 SDValue SITargetLowering::lowerFastUnsafeFDIV64(SDValue Op,
@@ -14418,6 +14458,9 @@ bool SITargetLowering::isCanonicalized(SelectionDAG &DAG, SDValue Op,
   case AMDGPUISD::RSQ_CLAMP:
   case AMDGPUISD::RCP_LEGACY:
   case AMDGPUISD::RCP_IFLAG:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_RCP:
+  // ZLUDA changes end
   case AMDGPUISD::LOG:
   case AMDGPUISD::EXP:
   case AMDGPUISD::DIV_SCALE:
@@ -16917,6 +16960,9 @@ SDValue SITargetLowering::PerformDAGCombine(SDNode *N,
   case AMDGPUISD::RSQ:
   case AMDGPUISD::RCP_LEGACY:
   case AMDGPUISD::RCP_IFLAG:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_RCP:
+  // ZLUDA changes end
   case AMDGPUISD::RSQ_CLAMP: {
     // FIXME: This is probably wrong. If src is an sNaN, it won't be quieted
     SDValue Src = N->getOperand(0);

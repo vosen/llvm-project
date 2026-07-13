@@ -129,6 +129,13 @@ def AMDGPUfract_impl : SDNode<"AMDGPUISD::FRACT", SDTFPUnaryOp>;
 
 // out = 1.0 / a
 def AMDGPUrcp_impl : SDNode<"AMDGPUISD::RCP", SDTFPUnaryOp>;
+// ZLUDA changes start
+let IsStrictFP = true in {
+  def AMDGPUrcp_strict_impl : SDNode<"AMDGPUISD::STRICT_RCP",
+                                     SDTFPUnaryOp,
+                                     [SDNPHasChain]>;
+}
+// ZLUDA changes end
 
 // v_log_f32, which is log2
 def AMDGPUlog_impl : SDNode<"AMDGPUISD::LOG", SDTFPUnaryOp>;
@@ -414,6 +421,9 @@ def AMDGPUret_glue : SDNode<"AMDGPUISD::RET_GLUE", SDTNone,
 //===----------------------------------------------------------------------===//
 
 def AMDGPUrcp : PatFrags<(ops node:$src), [(int_amdgcn_rcp node:$src),
+// ZLUDA changes start
+                                           (AMDGPUrcp_strict_impl node:$src),
+// ZLUDA changes end
                                            (AMDGPUrcp_impl node:$src)]>;
 def AMDGPUrcp_legacy : PatFrags<(ops node:$src), [(int_amdgcn_rcp_legacy node:$src),
                                                   (AMDGPUrcp_legacy_impl node:$src)]>;

@@ -687,6 +687,9 @@ static bool fnegFoldsIntoOpcode(unsigned Opc) {
   case AMDGPUISD::RCP:
   case AMDGPUISD::RCP_LEGACY:
   case AMDGPUISD::RCP_IFLAG:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_RCP:
+  // ZLUDA changes end
   case AMDGPUISD::SIN_HW:
   case AMDGPUISD::FMUL_LEGACY:
   case AMDGPUISD::FMIN_LEGACY:
@@ -5202,6 +5205,9 @@ SDValue AMDGPUTargetLowering::performFNegCombine(SDNode *N,
   case AMDGPUISD::RCP:
   case AMDGPUISD::RCP_LEGACY:
   case AMDGPUISD::RCP_IFLAG:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_RCP:
+  // ZLUDA changes end
   case AMDGPUISD::SIN_HW: {
     SDValue CvtSrc = N0.getOperand(0);
     if (CvtSrc.getOpcode() == ISD::FNEG) {
@@ -5553,6 +5559,9 @@ SDValue AMDGPUTargetLowering::PerformDAGCombine(SDNode *N,
     return performStoreCombine(N, DCI);
   case AMDGPUISD::RCP:
   case AMDGPUISD::RCP_IFLAG:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_RCP:
+  // ZLUDA changes end
     return performRcpCombine(N, DCI);
   case ISD::AssertZext:
   case ISD::AssertSext:
@@ -5771,6 +5780,9 @@ const char* AMDGPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(RSQ)
   NODE_NAME_CASE(RCP_LEGACY)
   NODE_NAME_CASE(RCP_IFLAG)
+  // ZLUDA changes start
+  NODE_NAME_CASE(STRICT_RCP)
+  // ZLUDA changes end
   NODE_NAME_CASE(LOG)
   NODE_NAME_CASE(EXP)
   NODE_NAME_CASE(FMUL_LEGACY)

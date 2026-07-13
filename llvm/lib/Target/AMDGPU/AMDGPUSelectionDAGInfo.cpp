@@ -17,3 +17,9 @@ bool AMDGPUSelectionDAGInfo::isTargetMemoryOpcode(unsigned Opcode) const {
   return Opcode >= AMDGPUISD::FIRST_MEMORY_OPCODE &&
          Opcode <= AMDGPUISD::LAST_MEMORY_OPCODE;
 }
+
+// ZLUDA changes start
+bool AMDGPUSelectionDAGInfo::isTargetStrictFPOpcode(unsigned Opcode) const {
+  return Opcode == AMDGPUISD::STRICT_RCP;
+}
+// ZLUDA changes end

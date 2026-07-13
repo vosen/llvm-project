@@ -18,6 +18,10 @@ public:
   ~AMDGPUSelectionDAGInfo() override;
 
   bool isTargetMemoryOpcode(unsigned Opcode) const override;
+
+  // ZLUDA changes start
+  bool isTargetStrictFPOpcode(unsigned Opcode) const override;
+  // ZLUDA changes end
 };
 
 } // namespace llvm

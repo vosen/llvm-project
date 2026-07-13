@@ -499,6 +499,9 @@ enum NodeType : unsigned {
   RSQ,
   RCP_LEGACY,
   RCP_IFLAG,
+  // ZLUDA changes start
+  STRICT_RCP,
+  // ZLUDA changes end
 
   // log2, no denormal handling for f32.
   LOG,
