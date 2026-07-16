@@ -10265,6 +10265,11 @@ SDValue SITargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   SDLoc DL(Op);
 
   switch (IntrID) {
+  // ZLUDA changes start
+  case Intrinsic::amdgcn_constrained_rcp:
+    return DAG.getNode(AMDGPUISD::STRICT_RCP, DL, {MVT::f32, MVT::Other},
+                       {Op.getOperand(0), Op.getOperand(2)});
+  // ZLUDA changes end
   case Intrinsic::amdgcn_ds_ordered_add:
   case Intrinsic::amdgcn_ds_ordered_swap: {
     MemSDNode *M = cast<MemSDNode>(Op);

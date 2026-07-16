@@ -466,6 +466,14 @@ def int_amdgcn_rcp : DefaultAttrsIntrinsic<
   [llvm_anyfloat_ty], [LLVMMatchType<0>], [IntrNoMem, IntrSpeculatable]
 >;
 
+// ZLUDA changes start
+let IntrProperties = [IntrInaccessibleMemOnly, IntrStrictFP, IntrSpeculatable] in {
+  def int_amdgcn_constrained_rcp : DefaultAttrsIntrinsic<
+    [llvm_anyfloat_ty], [LLVMMatchType<0>, llvm_metadata_ty, llvm_metadata_ty]
+  >;
+}
+// ZLUDA changes end
+
 def int_amdgcn_rcp_legacy : ClangBuiltin<"__builtin_amdgcn_rcp_legacy">,
   DefaultAttrsIntrinsic<[llvm_float_ty], [llvm_float_ty],
   [IntrNoMem, IntrSpeculatable]
