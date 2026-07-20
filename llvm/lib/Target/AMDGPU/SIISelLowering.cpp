@@ -278,6 +278,12 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::SETCC, {MVT::v2i1, MVT::v4i1}, Expand);
   AddPromotedToType(ISD::SETCC, MVT::i1, MVT::i32);
 
+  // ZLUDA changes start
+  setOperationAction(ISD::STRICT_FSETCC, {MVT::bf16, MVT::f16, MVT::f32, MVT::f64}, Custom);
+  setOperationAction(ISD::STRICT_FSETCCS, {MVT::bf16, MVT::f16, MVT::f32, MVT::f64}, Custom);
+  setOperationAction(ISD::STRICT_FEXP, {MVT::bf16, MVT::f16, MVT::f32, MVT::f64}, Custom);
+  // ZLUDA changes end
+
   setOperationAction(ISD::TRUNCATE,
                      {MVT::v2i32, MVT::v3i32, MVT::v4i32, MVT::v5i32,
                       MVT::v6i32, MVT::v7i32, MVT::v8i32, MVT::v9i32,
@@ -6735,6 +6741,23 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   default:
     return AMDGPUTargetLowering::LowerOperation(Op, DAG);
+  // ZLUDA changes start
+  // FIXME: that's not correct, fix it later
+  case ISD::STRICT_FEXP: {
+    SDLoc SL(Op);
+    SDValue Exp = DAG.getNode(ISD::FEXP, SL, {Op.getValueType()},
+                              Op.getOperand(1), Op->getFlags());
+    return DAG.getMergeValues({Exp, Op.getOperand(0)}, SL);
+  }
+  case ISD::STRICT_FSETCC:
+  case ISD::STRICT_FSETCCS: {
+    SDLoc SL(Op);
+    SDValue SetCC = DAG.getNode(
+        ISD::SETCC, SL, Op.getValueType(),
+        {Op.getOperand(1), Op.getOperand(2), Op.getOperand(3)}, Op->getFlags());
+    return DAG.getMergeValues({SetCC, Op.getOperand(0)}, SL);
+  }
+  // ZLUDA changes end
   case ISD::BRCOND:
     return LowerBRCOND(Op, DAG);
   case ISD::RETURNADDR:
@@ -10267,7 +10290,24 @@ SDValue SITargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   switch (IntrID) {
   // ZLUDA changes start
   case Intrinsic::amdgcn_constrained_rcp:
-    return DAG.getNode(AMDGPUISD::STRICT_RCP, DL, {MVT::f32, MVT::Other},
+    return DAG.getNode(AMDGPUISD::STRICT_RCP, DL,
+                       {Op.getValueType(), MVT::Other},
+                       {Op.getOperand(0), Op.getOperand(2)});
+  case Intrinsic::amdgcn_constrained_rsq:
+    return DAG.getNode(AMDGPUISD::STRICT_RSQ, DL,
+                       {Op.getValueType(), MVT::Other},
+                       {Op.getOperand(0), Op.getOperand(2)});
+  case Intrinsic::amdgcn_constrained_sqrt:
+    return DAG.getNode(AMDGPUISD::STRICT_SQRT, DL,
+                       {Op.getValueType(), MVT::Other},
+                       {Op.getOperand(0), Op.getOperand(2)});
+  case Intrinsic::amdgcn_constrained_log:
+    return DAG.getNode(AMDGPUISD::STRICT_LOG, DL,
+                       {Op.getValueType(), MVT::Other},
+                       {Op.getOperand(0), Op.getOperand(2)});
+  case Intrinsic::amdgcn_constrained_exp2:
+    return DAG.getNode(AMDGPUISD::STRICT_EXP, DL,
+                       {Op.getValueType(), MVT::Other},
                        {Op.getOperand(0), Op.getOperand(2)});
   // ZLUDA changes end
   case Intrinsic::amdgcn_ds_ordered_add:

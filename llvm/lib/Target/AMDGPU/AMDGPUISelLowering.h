@@ -501,6 +501,10 @@ enum NodeType : unsigned {
   RCP_IFLAG,
   // ZLUDA changes start
   STRICT_RCP,
+  STRICT_RSQ,
+  STRICT_SQRT,
+  STRICT_LOG,
+  STRICT_EXP,
   // ZLUDA changes end
 
   // log2, no denormal handling for f32.

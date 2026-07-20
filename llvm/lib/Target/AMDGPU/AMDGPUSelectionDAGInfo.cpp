@@ -20,6 +20,10 @@ bool AMDGPUSelectionDAGInfo::isTargetMemoryOpcode(unsigned Opcode) const {
 
 // ZLUDA changes start
 bool AMDGPUSelectionDAGInfo::isTargetStrictFPOpcode(unsigned Opcode) const {
-  return Opcode == AMDGPUISD::STRICT_RCP;
+  return Opcode == AMDGPUISD::STRICT_RCP ||
+         Opcode == AMDGPUISD::STRICT_RSQ ||
+         Opcode == AMDGPUISD::STRICT_SQRT ||
+         Opcode == AMDGPUISD::STRICT_LOG ||
+         Opcode == AMDGPUISD::STRICT_EXP;
 }
 // ZLUDA changes end
