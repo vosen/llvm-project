@@ -640,7 +640,9 @@ emitBinaryExpMaybeConstrainedFPBuiltin(CodeGenFunction &CGF, const CallExpr *E,
 
 // Emit an intrinsic that has 3 operands of the same type as its result.
 // Depending on mode, this may be a constrained floating-point intrinsic.
-static Value *emitTernaryMaybeConstrainedFPBuiltin(CodeGenFunction &CGF,
+// ZLUDA changes start
+Value *emitTernaryMaybeConstrainedFPBuiltin(CodeGenFunction &CGF,
+// ZLUDA changes end
                                  const CallExpr *E, unsigned IntrinsicID,
                                  unsigned ConstrainedIntrinsicID) {
   llvm::Value *Src0 = CGF.EmitScalarExpr(E->getArg(0));

@@ -397,8 +397,15 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
     llvm::Value *Y = EmitScalarExpr(E->getArg(1));
     llvm::Value *Z = EmitScalarExpr(E->getArg(2));
 
-    llvm::Function *Callee = CGM.getIntrinsic(Intrinsic::amdgcn_div_scale,
-                                           X->getType());
+    // ZLUDA changes start
+    llvm::Function *Callee;
+    if (Builder.getIsFPConstrained()) {
+      Callee = CGM.getIntrinsic(Intrinsic::amdgcn_constrained_div_scale,
+                                X->getType());
+    } else {
+      Callee = CGM.getIntrinsic(Intrinsic::amdgcn_div_scale, X->getType());
+    }
+    // ZLUDA changes end
 
     llvm::Value *Tmp = Builder.CreateCall(Callee, {X, Y, Z});
 
@@ -418,8 +425,16 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
     llvm::Value *Src2 = EmitScalarExpr(E->getArg(2));
     llvm::Value *Src3 = EmitScalarExpr(E->getArg(3));
 
-    llvm::Function *F = CGM.getIntrinsic(Intrinsic::amdgcn_div_fmas,
-                                      Src0->getType());
+
+    // ZLUDA changes start
+    llvm::Function *F;
+    if (Builder.getIsFPConstrained()) {
+      F = CGM.getIntrinsic(Intrinsic::amdgcn_constrained_div_fmas,
+                           Src0->getType());
+    } else {
+      F = CGM.getIntrinsic(Intrinsic::amdgcn_div_fmas, Src0->getType());
+    }
+    // ZLUDA changes end
     llvm::Value *Src3ToBool = Builder.CreateIsNotNull(Src3);
     return Builder.CreateCall(F, {Src0, Src1, Src2, Src3ToBool});
   }
@@ -489,8 +504,11 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
   case AMDGPU::BI__builtin_amdgcn_div_fixup:
   case AMDGPU::BI__builtin_amdgcn_div_fixupf:
   case AMDGPU::BI__builtin_amdgcn_div_fixuph:
-    return emitBuiltinWithOneOverloadedType<3>(*this, E,
-                                               Intrinsic::amdgcn_div_fixup);
+    // ZLUDA changes start
+    return emitTernaryMaybeConstrainedFPBuiltin(
+        *this, E, Intrinsic::amdgcn_div_fixup,
+        Intrinsic::amdgcn_constrained_div_fixup);
+    // ZLUDA changes end
   case AMDGPU::BI__builtin_amdgcn_trig_preop:
   case AMDGPU::BI__builtin_amdgcn_trig_preopf:
     return emitFPIntBuiltin(*this, E, Intrinsic::amdgcn_trig_preop);
@@ -498,18 +516,26 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
   case AMDGPU::BI__builtin_amdgcn_rcpf:
   case AMDGPU::BI__builtin_amdgcn_rcph:
   case AMDGPU::BI__builtin_amdgcn_rcp_bf16:
-    return emitBuiltinWithOneOverloadedType<1>(*this, E, Intrinsic::amdgcn_rcp);
+    // ZLUDA changes start
+    return emitUnaryMaybeConstrainedFPBuiltin(
+        *this, E, Intrinsic::amdgcn_rcp, Intrinsic::amdgcn_constrained_rcp);
+    // ZLUDA changes end
   case AMDGPU::BI__builtin_amdgcn_sqrt:
   case AMDGPU::BI__builtin_amdgcn_sqrtf:
   case AMDGPU::BI__builtin_amdgcn_sqrth:
   case AMDGPU::BI__builtin_amdgcn_sqrt_bf16:
-    return emitBuiltinWithOneOverloadedType<1>(*this, E,
-                                               Intrinsic::amdgcn_sqrt);
+    // ZLUDA changes start
+    return emitUnaryMaybeConstrainedFPBuiltin(
+        *this, E, Intrinsic::amdgcn_sqrt, Intrinsic::amdgcn_constrained_sqrt);
+    // ZLUDA changes end
   case AMDGPU::BI__builtin_amdgcn_rsq:
   case AMDGPU::BI__builtin_amdgcn_rsqf:
   case AMDGPU::BI__builtin_amdgcn_rsqh:
   case AMDGPU::BI__builtin_amdgcn_rsq_bf16:
-    return emitBuiltinWithOneOverloadedType<1>(*this, E, Intrinsic::amdgcn_rsq);
+    // ZLUDA changes start
+    return emitUnaryMaybeConstrainedFPBuiltin(
+        *this, E, Intrinsic::amdgcn_rsq, Intrinsic::amdgcn_constrained_rsq);
+    // ZLUDA changes end
   case AMDGPU::BI__builtin_amdgcn_rsq_clamp:
   case AMDGPU::BI__builtin_amdgcn_rsq_clampf:
     return emitBuiltinWithOneOverloadedType<1>(*this, E,
@@ -526,11 +552,16 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
     return EmitAMDGPUDispatchPtr(*this, E);
   case AMDGPU::BI__builtin_amdgcn_logf:
   case AMDGPU::BI__builtin_amdgcn_log_bf16:
-    return emitBuiltinWithOneOverloadedType<1>(*this, E, Intrinsic::amdgcn_log);
+    // ZLUDA changes start
+    return emitUnaryMaybeConstrainedFPBuiltin(
+        *this, E, Intrinsic::amdgcn_log, Intrinsic::amdgcn_constrained_log);
+    // ZLUDA changes end
   case AMDGPU::BI__builtin_amdgcn_exp2f:
   case AMDGPU::BI__builtin_amdgcn_exp2_bf16:
-    return emitBuiltinWithOneOverloadedType<1>(*this, E,
-                                               Intrinsic::amdgcn_exp2);
+    // ZLUDA changes start
+    return emitUnaryMaybeConstrainedFPBuiltin(
+        *this, E, Intrinsic::amdgcn_exp2, Intrinsic::amdgcn_constrained_exp2);
+    // ZLUDA changes end
   case AMDGPU::BI__builtin_amdgcn_log_clampf:
     return emitBuiltinWithOneOverloadedType<1>(*this, E,
                                                Intrinsic::amdgcn_log_clamp);

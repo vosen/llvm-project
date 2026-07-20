@@ -77,6 +77,12 @@ llvm::Value *emitUnaryMaybeConstrainedFPBuiltin(clang::CodeGen::CodeGenFunction 
                                                 unsigned IntrinsicID,
                                                 unsigned ConstrainedIntrinsicID);
 
+// ZLUDA changes start
+llvm::Value *emitTernaryMaybeConstrainedFPBuiltin(
+    clang::CodeGen::CodeGenFunction &CGF, const clang::CallExpr *E,
+    unsigned IntrinsicID, unsigned ConstrainedIntrinsicID);
+// ZLUDA changes end
+
 llvm::Value *EmitToInt(clang::CodeGen::CodeGenFunction &CGF, llvm::Value *V,
                        clang::QualType T, llvm::IntegerType *IntType);
 
