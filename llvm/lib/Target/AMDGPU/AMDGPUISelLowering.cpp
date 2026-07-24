@@ -5224,13 +5224,19 @@ SDValue AMDGPUTargetLowering::performFNegCombine(SDNode *N,
     SDValue Neg = DAG.getNode(ISD::FNEG, SL, CvtSrc.getValueType(), CvtSrc);
     return DAG.getNode(Opc, SL, VT, Neg, N0->getFlags());
   }
+  // ZLUDA changes start
+  case ISD::STRICT_FP_ROUND:
   case ISD::FP_ROUND: {
-    SDValue CvtSrc = N0.getOperand(0);
+    bool IsStrict = N0.getOpcode() == ISD::STRICT_FP_ROUND;
+    SDValue CvtSrc = N0.getOperand(IsStrict ? 1 : 0);
+    SDValue RoundFlag = N0.getOperand(IsStrict ? 2 : 1);
 
     if (CvtSrc.getOpcode() == ISD::FNEG) {
       // (fneg (fp_round (fneg x))) -> (fp_round x)
-      return DAG.getNode(ISD::FP_ROUND, SL, VT,
-                         CvtSrc.getOperand(0), N0.getOperand(1));
+      if (IsStrict)
+        return DAG.getNode(ISD::STRICT_FP_ROUND, SL, {VT, MVT::Other},
+                           {N0.getOperand(0), CvtSrc.getOperand(0), RoundFlag});
+      return DAG.getNode(ISD::FP_ROUND, SL, VT, CvtSrc.getOperand(0), RoundFlag);
     }
 
     if (!N0.hasOneUse())
@@ -5238,8 +5244,12 @@ SDValue AMDGPUTargetLowering::performFNegCombine(SDNode *N,
 
     // (fneg (fp_round x)) -> (fp_round (fneg x))
     SDValue Neg = DAG.getNode(ISD::FNEG, SL, CvtSrc.getValueType(), CvtSrc);
-    return DAG.getNode(ISD::FP_ROUND, SL, VT, Neg, N0.getOperand(1));
+    if (IsStrict)
+      return DAG.getNode(ISD::STRICT_FP_ROUND, SL, {VT, MVT::Other},
+                         {N0.getOperand(0), Neg, RoundFlag});
+    return DAG.getNode(ISD::FP_ROUND, SL, VT, Neg, RoundFlag);
   }
+  // ZLUDA changes end
   case ISD::FP16_TO_FP: {
     // v_cvt_f32_f16 supports source modifiers on pre-VI targets without legal
     // f16, but legalization of f16 fneg ends up pulling it out of the source.
