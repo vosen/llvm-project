@@ -3266,6 +3266,13 @@ bool SelectionDAGLegalize::ExpandNode(SDNode *Node) {
     break;
   }
   case ISD::STRICT_FP_ROUND:
+    // ZLUDA changes start
+    if ((Tmp1 = TLI.expandFP_ROUND(Node, DAG))) {
+      Results.push_back(Tmp1.getValue(0));
+      Results.push_back(Tmp1.getValue(1));
+      break;
+    }
+    // ZLUDA changes end
     // When strict mode is enforced we can't do expansion because it
     // does not honor the "strict" properties. Only libcall is allowed.
     if (TLI.isStrictFPEnabled())

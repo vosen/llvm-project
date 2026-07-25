@@ -222,9 +222,8 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
       AddPromotedToType(Opc, MVT::bf16, MVT::f32);
     }
 
-    setOperationAction(ISD::FP_ROUND, MVT::bf16, Expand);
     // ZLUDA changes start
-    setOperationAction(ISD::STRICT_FP_ROUND, MVT::bf16, Custom);
+    setOperationAction({ISD::FP_ROUND, ISD::STRICT_FP_ROUND}, MVT::bf16, Expand);
     // ZLUDA changes end
 
     setOperationAction(ISD::SELECT, MVT::bf16, Promote);

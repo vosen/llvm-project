@@ -1427,13 +1427,13 @@ let SubtargetPredicate = HasCvtPkF16F32Inst in {
     defm V_CVT_PK_F16_F32 : VOP3Inst<"v_cvt_pk_f16_f32", VOP3_Profile<VOP_V2F16_F32_F32>>;
   }
 
-  def : GCNPat<(v2f16 (fpround v2f32:$src)),
+  def : GCNPat<(v2f16 (any_fpround v2f32:$src)),
                (V_CVT_PK_F16_F32_e64 0, (EXTRACT_SUBREG VReg_64:$src, sub0), 0, (EXTRACT_SUBREG VReg_64:$src, sub1))>;
-  def : GCNPat<(v2f16 (fpround v2f64:$src)),
+  def : GCNPat<(v2f16 (any_fpround v2f64:$src)),
                (V_CVT_PK_F16_F32_e64 0, (V_CVT_F32_F64_e64 0, (EXTRACT_SUBREG VReg_128:$src, sub0_sub1)),
                                      0, (V_CVT_F32_F64_e64 0, (EXTRACT_SUBREG VReg_128:$src, sub2_sub3)))>;
-  def : GCNPat<(v2f16 (build_vector (f16 (fpround (f32 (VOP3Mods f32:$src0, i32:$src0_modifiers)))),
-                                    (f16 (fpround (f32 (VOP3Mods f32:$src1, i32:$src1_modifiers)))))),
+  def : GCNPat<(v2f16 (build_vector (f16 (any_fpround (f32 (VOP3Mods f32:$src0, i32:$src0_modifiers)))),
+                                    (f16 (any_fpround (f32 (VOP3Mods f32:$src1, i32:$src1_modifiers)))))),
                (V_CVT_PK_F16_F32_e64 $src0_modifiers, $src0, $src1_modifiers, $src1)>;
 }
 
@@ -1722,7 +1722,9 @@ class VOP3_CVT_SR_FP16_TiedInput_Profile<VOPProfile P> : VOP3_CVT_SCALE_F1632_FP
 
 // FIXME: GlobalISel cannot distinguish f16 and bf16 and may start using bf16 patterns
 //        instead of less complex f16. Disable GlobalISel for these for now.
-def bf16_fpround : PatFrag <(ops node:$src0),  (fpround $src0), [{ return true; }]> {
+def bf16_fpround : PatFrags <(ops node:$src0),
+                             [(fpround node:$src0), (strict_fpround node:$src0)],
+                             [{ return true; }]> {
   let GISelPredicateCode = [{return false;}];
 }
 
