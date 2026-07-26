@@ -487,25 +487,23 @@ let IntrProperties = [IntrInaccessibleMemOnly, IntrStrictFP, IntrSpeculatable] i
   def int_amdgcn_constrained_log : DefaultAttrsIntrinsic<
     [llvm_anyfloat_ty], [LLVMMatchType<0>]
   >;
+
+  def int_amdgcn_constrained_div_fmas : DefaultAttrsIntrinsic<
+    [llvm_anyfloat_ty],
+    [LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>, llvm_i1_ty]
+  >;
+
+  def int_amdgcn_constrained_div_fixup : DefaultAttrsIntrinsic<
+    [llvm_anyfloat_ty],
+    [LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>]
+  >;
+
+  def int_amdgcn_constrained_div_scale : DefaultAttrsIntrinsic<
+    [llvm_anyfloat_ty, llvm_i1_ty],
+    [LLVMMatchType<0>, LLVMMatchType<0>, llvm_i1_ty],
+    [IntrInaccessibleMemOnly, IntrStrictFP, IntrSpeculatable, ImmArg<ArgIndex<2>>]
+  >;
 }
-
-def int_amdgcn_constrained_div_scale : DefaultAttrsIntrinsic<
-  [llvm_anyfloat_ty, llvm_i1_ty],
-  [LLVMMatchType<0>, LLVMMatchType<0>, llvm_i1_ty],
-  [IntrStrictFP, IntrNoMem, IntrSpeculatable, ImmArg<ArgIndex<2>>]
->;
-
-def int_amdgcn_constrained_div_fmas : DefaultAttrsIntrinsic<
-  [llvm_anyfloat_ty],
-  [LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>, llvm_i1_ty],
-  [IntrStrictFP, IntrNoMem, IntrSpeculatable]
->;
-
-def int_amdgcn_constrained_div_fixup : DefaultAttrsIntrinsic<
-  [llvm_anyfloat_ty],
-  [LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>],
-  [IntrStrictFP, IntrNoMem, IntrSpeculatable]
->;
 // ZLUDA changes end
 
 def int_amdgcn_rcp_legacy : ClangBuiltin<"__builtin_amdgcn_rcp_legacy">,

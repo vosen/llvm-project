@@ -574,6 +574,11 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::BF16_TO_FP, {MVT::i16, MVT::f32, MVT::f64}, Expand);
   setOperationAction(ISD::FP_TO_BF16, {MVT::i16, MVT::f32, MVT::f64}, Expand);
 
+  // ZLUDA changes start
+  setOperationAction(ISD::STRICT_BF16_TO_FP, {MVT::i16, MVT::f32, MVT::f64}, Custom);
+  setOperationAction(ISD::STRICT_FP_TO_BF16, {MVT::i16, MVT::f32, MVT::f64}, Custom);
+  // ZLUDA changes end
+
   // Custom lower these because we can't specify a rule based on an illegal
   // source bf16.
   setOperationAction({ISD::FP_EXTEND, ISD::STRICT_FP_EXTEND}, MVT::f32, Custom);
@@ -943,7 +948,8 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
                      {MVT::v2f16, MVT::v2i16, MVT::v2bf16, MVT::v3f16,
                       MVT::v3i16, MVT::v4f16, MVT::v4i16, MVT::v4bf16,
                       MVT::v8i16, MVT::v8f16, MVT::v8bf16, MVT::Other, MVT::f16,
-                      MVT::i16, MVT::bf16, MVT::i8, MVT::i128},
+                      MVT::f32, MVT::f64, MVT::i16, MVT::bf16, MVT::i8,
+                      MVT::i128},
                      Custom);
 
   setOperationAction(ISD::INTRINSIC_VOID,
@@ -4822,9 +4828,10 @@ SDValue SITargetLowering::lowerFP_EXTEND(SDValue Op, SelectionDAG &DAG) const {
       DAG.getNode(ISD::BITCAST, SL, SrcVT.changeTypeToInteger(), Src);
 
   EVT DstVT = Op.getValueType();
-  if (IsStrict)
-    llvm_unreachable("Need STRICT_BF16_TO_FP");
-
+  if (IsStrict) {
+    return DAG.getNode(ISD::STRICT_BF16_TO_FP, SL, {DstVT, MVT::Other},
+                       {Op.getOperand(0), BitCast});
+  }
   return DAG.getNode(ISD::BF16_TO_FP, SL, DstVT, BitCast);
 }
 
@@ -6894,6 +6901,18 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     return lowerSET_ROUNDING(Op, DAG);
   case ISD::PREFETCH:
     return lowerPREFETCH(Op, DAG);
+  case ISD::STRICT_BF16_TO_FP: {
+    SDLoc SL(Op);
+    SDValue Cvt = DAG.getNode(ISD::BF16_TO_FP, SL, Op.getValueType(),
+                              Op.getOperand(1));
+    return DAG.getMergeValues({Cvt, Op.getOperand(0)}, SL);
+  }
+  case ISD::STRICT_FP_TO_BF16: {
+    SDLoc SL(Op);
+    SDValue Cvt = DAG.getNode(ISD::FP_TO_BF16, SL, Op.getValueType(),
+                              Op.getOperand(1));
+    return DAG.getMergeValues({Cvt, Op.getOperand(0)}, SL);
+  }
   case ISD::FP_EXTEND:
   case ISD::STRICT_FP_EXTEND:
     return lowerFP_EXTEND(Op, DAG);
@@ -10345,6 +10364,32 @@ SDValue SITargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
 
   switch (IntrID) {
   // ZLUDA changes start
+  case Intrinsic::amdgcn_constrained_div_scale: {
+    const ConstantSDNode *Param = cast<ConstantSDNode>(Op.getOperand(4));
+
+    SDValue Numerator = Op.getOperand(2);
+    SDValue Denominator = Op.getOperand(3);
+    SDValue Src0 = Param->isAllOnes() ? Numerator : Denominator;
+
+    SDValue Scale = DAG.getNode(AMDGPUISD::DIV_SCALE, DL,
+                                DAG.getVTList(Op.getValue(0).getValueType(),
+                                              Op.getValue(1).getValueType()),
+                                Src0, Denominator, Numerator);
+    return DAG.getMergeValues(
+        {Scale.getValue(0), Scale.getValue(1), Op.getOperand(0)}, DL);
+  }
+  case Intrinsic::amdgcn_constrained_div_fmas: {
+    SDValue Fmas = DAG.getNode(AMDGPUISD::DIV_FMAS, DL, Op.getValueType(),
+                               Op.getOperand(2), Op.getOperand(3),
+                               Op.getOperand(4), Op.getOperand(5));
+    return DAG.getMergeValues({Fmas, Op.getOperand(0)}, DL);
+  }
+  case Intrinsic::amdgcn_constrained_div_fixup: {
+    SDValue Fixup = DAG.getNode(AMDGPUISD::DIV_FIXUP, DL, Op.getValueType(),
+                                Op.getOperand(2), Op.getOperand(3),
+                                Op.getOperand(4));
+    return DAG.getMergeValues({Fixup, Op.getOperand(0)}, DL);
+  }
   case Intrinsic::amdgcn_constrained_rcp:
     return DAG.getNode(AMDGPUISD::STRICT_RCP, DL,
                        {Op.getValueType(), MVT::Other},
@@ -14545,6 +14590,14 @@ bool SITargetLowering::isCanonicalized(SelectionDAG &DAG, SDValue Op,
   case ISD::FSQRT:
   case ISD::FDIV:
   case ISD::FREM:
+  // ZLUDA changes start
+  case ISD::STRICT_FP_ROUND:
+  case ISD::STRICT_FP_EXTEND:
+  case ISD::STRICT_FP16_TO_FP:
+  case ISD::STRICT_FP_TO_FP16:
+  case ISD::STRICT_BF16_TO_FP:
+  case ISD::STRICT_FP_TO_BF16:
+  // ZLUDA changes end
   case ISD::FP_ROUND:
   case ISD::FP_EXTEND:
   case ISD::FP16_TO_FP:
