@@ -224,6 +224,8 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
 
     // ZLUDA changes start
     setOperationAction({ISD::FP_ROUND, ISD::STRICT_FP_ROUND}, MVT::bf16, Expand);
+    setOperationAction(ISD::STRICT_FMA, MVT::bf16, Promote);
+    AddPromotedToType(ISD::STRICT_FMA, MVT::bf16, MVT::f32);
     // ZLUDA changes end
 
     setOperationAction(ISD::SELECT, MVT::bf16, Promote);
@@ -577,6 +579,11 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
   // ZLUDA changes start
   setOperationAction(ISD::STRICT_BF16_TO_FP, {MVT::i16, MVT::f32, MVT::f64}, Custom);
   setOperationAction(ISD::STRICT_FP_TO_BF16, {MVT::i16, MVT::f32, MVT::f64}, Custom);
+  setOperationAction(ISD::STRICT_FP16_TO_FP, {MVT::i16, MVT::f32, MVT::f64}, Custom);
+  setOperationAction(ISD::STRICT_FP_TO_FP16, {MVT::i16, MVT::f32, MVT::f64}, Custom);
+  setOperationAction({ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT,
+                      ISD::STRICT_SINT_TO_FP, ISD::STRICT_UINT_TO_FP},
+                     {MVT::i1, MVT::i16, MVT::i32, MVT::i64}, Custom);
   // ZLUDA changes end
 
   // Custom lower these because we can't specify a rule based on an illegal
@@ -6753,6 +6760,48 @@ SDValue SITargetLowering::splitTernaryVectorOp(SDValue Op,
   return DAG.getNode(ISD::CONCAT_VECTORS, SDLoc(Op), VT, OpLo, OpHi);
 }
 
+// ZLUDA changes start
+// FIXME: the incoming chain is only forwarded, it is not attached to the
+// conversion itself, so the result can still be reordered or CSEd across a
+// SET_ROUNDING. Same shortcut as STRICT_FEXP/STRICT_FSETCC above.
+static SDValue lowerStrictConversion(SDValue Op, SelectionDAG &DAG) {
+  unsigned Opc;
+  switch (Op.getOpcode()) {
+  case ISD::STRICT_FP16_TO_FP:
+    Opc = ISD::FP16_TO_FP;
+    break;
+  case ISD::STRICT_FP_TO_FP16:
+    Opc = ISD::FP_TO_FP16;
+    break;
+  case ISD::STRICT_BF16_TO_FP:
+    Opc = ISD::BF16_TO_FP;
+    break;
+  case ISD::STRICT_FP_TO_BF16:
+    Opc = ISD::FP_TO_BF16;
+    break;
+  case ISD::STRICT_FP_TO_SINT:
+    Opc = ISD::FP_TO_SINT;
+    break;
+  case ISD::STRICT_FP_TO_UINT:
+    Opc = ISD::FP_TO_UINT;
+    break;
+  case ISD::STRICT_SINT_TO_FP:
+    Opc = ISD::SINT_TO_FP;
+    break;
+  case ISD::STRICT_UINT_TO_FP:
+    Opc = ISD::UINT_TO_FP;
+    break;
+  default:
+    llvm_unreachable("not a strict conversion");
+  }
+
+  SDLoc SL(Op);
+  SDValue Cvt = DAG.getNode(Opc, SL, Op.getValueType(), Op.getOperand(1),
+                            Op->getFlags());
+  return DAG.getMergeValues({Cvt, Op.getOperand(0)}, SL);
+}
+// ZLUDA changes end
+
 SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   default:
@@ -6901,18 +6950,17 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     return lowerSET_ROUNDING(Op, DAG);
   case ISD::PREFETCH:
     return lowerPREFETCH(Op, DAG);
-  case ISD::STRICT_BF16_TO_FP: {
-    SDLoc SL(Op);
-    SDValue Cvt = DAG.getNode(ISD::BF16_TO_FP, SL, Op.getValueType(),
-                              Op.getOperand(1));
-    return DAG.getMergeValues({Cvt, Op.getOperand(0)}, SL);
-  }
-  case ISD::STRICT_FP_TO_BF16: {
-    SDLoc SL(Op);
-    SDValue Cvt = DAG.getNode(ISD::FP_TO_BF16, SL, Op.getValueType(),
-                              Op.getOperand(1));
-    return DAG.getMergeValues({Cvt, Op.getOperand(0)}, SL);
-  }
+  // ZLUDA changes start
+  case ISD::STRICT_FP16_TO_FP:
+  case ISD::STRICT_FP_TO_FP16:
+  case ISD::STRICT_BF16_TO_FP:
+  case ISD::STRICT_FP_TO_BF16:
+  case ISD::STRICT_FP_TO_SINT:
+  case ISD::STRICT_FP_TO_UINT:
+  case ISD::STRICT_SINT_TO_FP:
+  case ISD::STRICT_UINT_TO_FP:
+    return lowerStrictConversion(Op, DAG);
+  // ZLUDA changes end
   case ISD::FP_EXTEND:
   case ISD::STRICT_FP_EXTEND:
     return lowerFP_EXTEND(Op, DAG);
