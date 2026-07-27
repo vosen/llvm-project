@@ -12185,24 +12185,98 @@ SDValue SITargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
   return DAG.getNode(ISD::BITCAST, DL, VT, Res);
 }
 
+// ZLUDA changes start
+namespace {
+class FPExpansionBuilder {
+  SelectionDAG &DAG;
+  SDValue Op;
+  SDValue Chain;
+
+public:
+  FPExpansionBuilder(SDValue Op, SelectionDAG &DAG)
+      : DAG(DAG), Op(Op),
+        Chain(Op->isStrictFPOpcode() ? Op.getOperand(0) : SDValue()) {}
+
+  SDValue getOperand(unsigned I) const {
+    return Op.getOperand(Op->isStrictFPOpcode() ? I + 1 : I);
+  }
+
+  SDValue finish(const SDLoc &SL, SDValue Result) {
+    if (!Chain)
+      return Result;
+    return DAG.getMergeValues({Result, Chain}, SL);
+  }
+
+  SDValue fmul(const SDLoc &SL, EVT VT, SDValue A, SDValue B) {
+    return emit(ISD::FMUL, ISD::STRICT_FMUL, SL, VT, {A, B});
+  }
+
+  SDValue fma(const SDLoc &SL, EVT VT, SDValue A, SDValue B, SDValue C) {
+    return emit(ISD::FMA, ISD::STRICT_FMA, SL, VT, {A, B, C});
+  }
+
+  SDValue fldexp(const SDLoc &SL, EVT VT, SDValue A, SDValue Exp) {
+    return emit(ISD::FLDEXP, ISD::STRICT_FLDEXP, SL, VT, {A, Exp});
+  }
+
+  SDValue rcpNoflags(const SDLoc &SL, EVT VT, SDValue A) {
+    return emit(AMDGPUISD::RCP, AMDGPUISD::STRICT_RCP, SL, VT, {A},
+                SDNodeFlags());
+  }
+
+  SDValue rsq(const SDLoc &SL, EVT VT, SDValue A) {
+    return emit(AMDGPUISD::RSQ, AMDGPUISD::STRICT_RSQ, SL, VT, {A});
+  }
+
+  SDValue sqrt(const SDLoc &SL, EVT VT, SDValue A) {
+    if (!Chain) {
+      SDValue SqrtID =
+          DAG.getTargetConstant(Intrinsic::amdgcn_sqrt, SL, MVT::i32);
+      return DAG.getNode(ISD::INTRINSIC_WO_CHAIN, SL, VT, SqrtID, A,
+                         Op->getFlags());
+    }
+
+    SDValue N =
+        DAG.getNode(AMDGPUISD::STRICT_SQRT, SL, DAG.getVTList(VT, MVT::Other),
+                    {Chain, A}, Op->getFlags());
+    Chain = N.getValue(1);
+    return N;
+  }
+
+private:
+  SDValue emit(unsigned Opc, unsigned StrictOpc, const SDLoc &SL, EVT VT,
+               ArrayRef<SDValue> Ops) {
+    return emit(Opc, StrictOpc, SL, VT, Ops, Op->getFlags());
+  }
+
+  SDValue emit(unsigned Opc, unsigned StrictOpc, const SDLoc &SL, EVT VT,
+               ArrayRef<SDValue> Ops, SDNodeFlags Flags) {
+    if (!Chain)
+      return DAG.getNode(Opc, SL, VT, Ops, Flags);
+
+    SmallVector<SDValue> StrictOps;
+    StrictOps.push_back(Chain);
+    StrictOps.append(Ops.begin(), Ops.end());
+
+    SDValue N = DAG.getNode(StrictOpc, SL, DAG.getVTList(VT, MVT::Other),
+                            StrictOps, Flags);
+    Chain = N.getValue(1);
+    return N;
+  }
+};
+
+} // end anonymous namespace
+// ZLUDA changes end
+
 // Catch division cases where we can use shortcuts with rcp and rsq
 // instructions.
 SDValue SITargetLowering::lowerFastUnsafeFDIV(SDValue Op,
                                               SelectionDAG &DAG) const {
   SDLoc SL(Op);
   // ZLUDA changes start
-  SDValue Chain;
-  SDValue LHS;
-  SDValue RHS;
-  bool StrictFP = Op->isStrictFPOpcode();
-  if (StrictFP) {
-    Chain = Op.getOperand(0);
-    LHS = Op.getOperand(1);
-    RHS = Op.getOperand(2);
-  } else {
-    LHS = Op.getOperand(0);
-    RHS = Op.getOperand(1);
-  }
+  FPExpansionBuilder B(Op, DAG);
+  SDValue LHS = B.getOperand(0);
+  SDValue RHS = B.getOperand(1);
   // ZLUDA changes end
   EVT VT = Op.getValueType();
   const SDNodeFlags Flags = Op->getFlags();
@@ -12230,12 +12304,7 @@ SDValue SITargetLowering::lowerFastUnsafeFDIV(SDValue Op,
       // error seems really high at 2^29 ULP.
       // 1.0 / x -> rcp(x)
       // ZLUDA changes start
-      if (StrictFP) {
-        return DAG.getNode(AMDGPUISD::STRICT_RCP, SL, {VT, MVT::Other},
-                           {Chain, RHS});
-      } else {
-        return DAG.getNode(AMDGPUISD::RCP, SL, VT, RHS);
-      }
+      return B.finish(SL, B.rcpNoflags(SL, VT, RHS));
       // ZLUDA changes end
     }
 
@@ -12244,12 +12313,7 @@ SDValue SITargetLowering::lowerFastUnsafeFDIV(SDValue Op,
       // -1.0 / x -> rcp (fneg x)
       SDValue FNegRHS = DAG.getNode(ISD::FNEG, SL, VT, RHS);
       // ZLUDA changes start
-      if (StrictFP) {
-        return DAG.getNode(AMDGPUISD::STRICT_RCP, SL, {VT, MVT::Other},
-                           {Chain, FNegRHS});
-      } else {
-        return DAG.getNode(AMDGPUISD::RCP, SL, VT, FNegRHS);
-      }
+      return B.finish(SL, B.rcpNoflags(SL, VT, FNegRHS));
       // ZLUDA changes end
     }
   }
@@ -12263,15 +12327,8 @@ SDValue SITargetLowering::lowerFastUnsafeFDIV(SDValue Op,
   // Turn into multiply by the reciprocal.
   // x / y -> x * (1.0 / y)
   // ZLUDA changes start
-  if (StrictFP) {
-    SDValue Recip =
-        DAG.getNode(AMDGPUISD::STRICT_RCP, SL, {VT, MVT::Other}, {Chain, RHS});
-    return DAG.getNode(ISD::STRICT_FMUL, SL, {VT, MVT::Other},
-                       {Recip.getValue(1), LHS, Recip}, Flags);
-  } else {
-    SDValue Recip = DAG.getNode(AMDGPUISD::RCP, SL, VT, RHS);
-    return DAG.getNode(ISD::FMUL, SL, VT, LHS, Recip, Flags);
-  }
+  SDValue Recip = B.rcpNoflags(SL, VT, RHS);
+  return B.finish(SL, B.fmul(SL, VT, LHS, Recip));
   // ZLUDA changes end
 }
 
@@ -12781,79 +12838,6 @@ SDValue SITargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   // Probably an invalid store. If so we'll end up emitting a selection error.
   return SDValue();
 }
-
-// ZLUDA changes start
-namespace {
-class FPExpansionBuilder {
-  SelectionDAG &DAG;
-  SDValue Op;
-  SDValue Chain;
-
-public:
-  FPExpansionBuilder(SDValue Op, SelectionDAG &DAG)
-      : DAG(DAG), Op(Op),
-        Chain(Op->isStrictFPOpcode() ? Op.getOperand(0) : SDValue()) {}
-
-  SDValue getOperand(unsigned I) const {
-    return Op.getOperand(Op->isStrictFPOpcode() ? I + 1 : I);
-  }
-
-  SDValue finish(const SDLoc &SL, SDValue Result) {
-    if (!Chain)
-      return Result;
-    return DAG.getMergeValues({Result, Chain}, SL);
-  }
-
-  SDValue fmul(const SDLoc &SL, EVT VT, SDValue A, SDValue B) {
-    return emit(ISD::FMUL, ISD::STRICT_FMUL, SL, VT, {A, B});
-  }
-
-  SDValue fma(const SDLoc &SL, EVT VT, SDValue A, SDValue B, SDValue C) {
-    return emit(ISD::FMA, ISD::STRICT_FMA, SL, VT, {A, B, C});
-  }
-
-  SDValue fldexp(const SDLoc &SL, EVT VT, SDValue A, SDValue Exp) {
-    return emit(ISD::FLDEXP, ISD::STRICT_FLDEXP, SL, VT, {A, Exp});
-  }
-
-  SDValue rsq(const SDLoc &SL, EVT VT, SDValue A) {
-    return emit(AMDGPUISD::RSQ, AMDGPUISD::STRICT_RSQ, SL, VT, {A});
-  }
-
-  SDValue sqrt(const SDLoc &SL, EVT VT, SDValue A) {
-    if (!Chain) {
-      SDValue SqrtID =
-          DAG.getTargetConstant(Intrinsic::amdgcn_sqrt, SL, MVT::i32);
-      return DAG.getNode(ISD::INTRINSIC_WO_CHAIN, SL, VT, SqrtID, A,
-                         Op->getFlags());
-    }
-
-    SDValue N =
-        DAG.getNode(AMDGPUISD::STRICT_SQRT, SL, DAG.getVTList(VT, MVT::Other),
-                    {Chain, A}, Op->getFlags());
-    Chain = N.getValue(1);
-    return N;
-  }
-
-private:
-  SDValue emit(unsigned Opc, unsigned StrictOpc, const SDLoc &SL, EVT VT,
-               ArrayRef<SDValue> Ops) {
-    if (!Chain)
-      return DAG.getNode(Opc, SL, VT, Ops, Op->getFlags());
-
-    SmallVector<SDValue> StrictOps;
-    StrictOps.push_back(Chain);
-    StrictOps.append(Ops.begin(), Ops.end());
-
-    SDValue N = DAG.getNode(StrictOpc, SL, DAG.getVTList(VT, MVT::Other),
-                            StrictOps, Op->getFlags());
-    Chain = N.getValue(1);
-    return N;
-  }
-};
-
-} // end anonymous namespace
-// ZLUDA changes end
 
 // Avoid the full correct expansion for f32 sqrt when promoting from f16.
 SDValue SITargetLowering::lowerFSQRTF16(SDValue Op, SelectionDAG &DAG) const {
