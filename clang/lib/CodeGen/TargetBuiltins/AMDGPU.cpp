@@ -397,15 +397,8 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
     llvm::Value *Y = EmitScalarExpr(E->getArg(1));
     llvm::Value *Z = EmitScalarExpr(E->getArg(2));
 
-    // ZLUDA changes start
-    llvm::Function *Callee;
-    if (Builder.getIsFPConstrained()) {
-      Callee = CGM.getIntrinsic(Intrinsic::amdgcn_constrained_div_scale,
-                                X->getType());
-    } else {
-      Callee = CGM.getIntrinsic(Intrinsic::amdgcn_div_scale, X->getType());
-    }
-    // ZLUDA changes end
+    llvm::Function *Callee = CGM.getIntrinsic(Intrinsic::amdgcn_div_scale,
+                                           X->getType());
 
     llvm::Value *Tmp = Builder.CreateCall(Callee, {X, Y, Z});
 
@@ -504,11 +497,8 @@ Value *CodeGenFunction::EmitAMDGPUBuiltinExpr(unsigned BuiltinID,
   case AMDGPU::BI__builtin_amdgcn_div_fixup:
   case AMDGPU::BI__builtin_amdgcn_div_fixupf:
   case AMDGPU::BI__builtin_amdgcn_div_fixuph:
-    // ZLUDA changes start
-    return emitTernaryMaybeConstrainedFPBuiltin(
-        *this, E, Intrinsic::amdgcn_div_fixup,
-        Intrinsic::amdgcn_constrained_div_fixup);
-    // ZLUDA changes end
+    return emitBuiltinWithOneOverloadedType<3>(*this, E,
+                                               Intrinsic::amdgcn_div_fixup);
   case AMDGPU::BI__builtin_amdgcn_trig_preop:
   case AMDGPU::BI__builtin_amdgcn_trig_preopf:
     return emitFPIntBuiltin(*this, E, Intrinsic::amdgcn_trig_preop);

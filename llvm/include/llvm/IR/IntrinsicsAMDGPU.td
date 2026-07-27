@@ -467,6 +467,9 @@ def int_amdgcn_rcp : DefaultAttrsIntrinsic<
 >;
 
 // ZLUDA changes start
+// AMDGPU transcendentals dont' seem to support either
+// rounding or denormal registers
+// Seems like denormals registers are supported for f16 and f64
 let IntrProperties = [IntrInaccessibleMemOnly, IntrStrictFP, IntrSpeculatable] in {
   def int_amdgcn_constrained_rcp : DefaultAttrsIntrinsic<
     [llvm_anyfloat_ty], [LLVMMatchType<0>]
@@ -491,17 +494,6 @@ let IntrProperties = [IntrInaccessibleMemOnly, IntrStrictFP, IntrSpeculatable] i
   def int_amdgcn_constrained_div_fmas : DefaultAttrsIntrinsic<
     [llvm_anyfloat_ty],
     [LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>, llvm_i1_ty]
-  >;
-
-  def int_amdgcn_constrained_div_fixup : DefaultAttrsIntrinsic<
-    [llvm_anyfloat_ty],
-    [LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>]
-  >;
-
-  def int_amdgcn_constrained_div_scale : DefaultAttrsIntrinsic<
-    [llvm_anyfloat_ty, llvm_i1_ty],
-    [LLVMMatchType<0>, LLVMMatchType<0>, llvm_i1_ty],
-    [IntrInaccessibleMemOnly, IntrStrictFP, IntrSpeculatable, ImmArg<ArgIndex<2>>]
   >;
 }
 // ZLUDA changes end

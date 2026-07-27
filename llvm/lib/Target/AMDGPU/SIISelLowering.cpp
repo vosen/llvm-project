@@ -10418,31 +10418,11 @@ SDValue SITargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
 
   switch (IntrID) {
   // ZLUDA changes start
-  case Intrinsic::amdgcn_constrained_div_scale: {
-    const ConstantSDNode *Param = cast<ConstantSDNode>(Op.getOperand(4));
-
-    SDValue Numerator = Op.getOperand(2);
-    SDValue Denominator = Op.getOperand(3);
-    SDValue Src0 = Param->isAllOnes() ? Numerator : Denominator;
-
-    SDValue Scale = DAG.getNode(AMDGPUISD::DIV_SCALE, DL,
-                                DAG.getVTList(Op.getValue(0).getValueType(),
-                                              Op.getValue(1).getValueType()),
-                                Src0, Denominator, Numerator);
-    return DAG.getMergeValues(
-        {Scale.getValue(0), Scale.getValue(1), Op.getOperand(0)}, DL);
-  }
   case Intrinsic::amdgcn_constrained_div_fmas: {
     SDValue Fmas = DAG.getNode(AMDGPUISD::DIV_FMAS, DL, Op.getValueType(),
                                Op.getOperand(2), Op.getOperand(3),
                                Op.getOperand(4), Op.getOperand(5));
     return DAG.getMergeValues({Fmas, Op.getOperand(0)}, DL);
-  }
-  case Intrinsic::amdgcn_constrained_div_fixup: {
-    SDValue Fixup = DAG.getNode(AMDGPUISD::DIV_FIXUP, DL, Op.getValueType(),
-                                Op.getOperand(2), Op.getOperand(3),
-                                Op.getOperand(4));
-    return DAG.getMergeValues({Fixup, Op.getOperand(0)}, DL);
   }
   case Intrinsic::amdgcn_constrained_rcp:
     return DAG.getNode(AMDGPUISD::STRICT_RCP, DL,
