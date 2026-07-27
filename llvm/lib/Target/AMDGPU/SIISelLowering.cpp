@@ -273,7 +273,10 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::SELECT, MVT::f64, Promote);
   AddPromotedToType(ISD::SELECT, MVT::f64, MVT::i64);
 
-  setOperationAction(ISD::FSQRT, {MVT::f32, MVT::f64}, Custom);
+  // ZLUDA changes start
+  setOperationAction({ISD::FSQRT, ISD::STRICT_FSQRT}, {MVT::f32, MVT::f64},
+                     Custom);
+  // ZLUDA changes end
 
   setOperationAction(ISD::SELECT_CC,
                      {MVT::f32, MVT::i32, MVT::i64, MVT::f64, MVT::i1}, Expand);
@@ -6833,7 +6836,10 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
            "Load should return a value and a chain");
     return Result;
   }
-  case ISD::FSQRT: {
+  // ZLUDA changes start
+  case ISD::FSQRT:
+  case ISD::STRICT_FSQRT: {
+    // ZLUDA changes end
     EVT VT = Op.getValueType();
     if (VT == MVT::f32)
       return lowerFSQRTF32(Op, DAG);
@@ -12796,6 +12802,79 @@ SDValue SITargetLowering::LowerSTORE(SDValue Op, SelectionDAG &DAG) const {
   return SDValue();
 }
 
+// ZLUDA changes start
+namespace {
+class FPExpansionBuilder {
+  SelectionDAG &DAG;
+  SDValue Op;
+  SDValue Chain;
+
+public:
+  FPExpansionBuilder(SDValue Op, SelectionDAG &DAG)
+      : DAG(DAG), Op(Op),
+        Chain(Op->isStrictFPOpcode() ? Op.getOperand(0) : SDValue()) {}
+
+  SDValue getOperand(unsigned I) const {
+    return Op.getOperand(Op->isStrictFPOpcode() ? I + 1 : I);
+  }
+
+  SDValue finish(const SDLoc &SL, SDValue Result) {
+    if (!Chain)
+      return Result;
+    return DAG.getMergeValues({Result, Chain}, SL);
+  }
+
+  SDValue fmul(const SDLoc &SL, EVT VT, SDValue A, SDValue B) {
+    return emit(ISD::FMUL, ISD::STRICT_FMUL, SL, VT, {A, B});
+  }
+
+  SDValue fma(const SDLoc &SL, EVT VT, SDValue A, SDValue B, SDValue C) {
+    return emit(ISD::FMA, ISD::STRICT_FMA, SL, VT, {A, B, C});
+  }
+
+  SDValue fldexp(const SDLoc &SL, EVT VT, SDValue A, SDValue Exp) {
+    return emit(ISD::FLDEXP, ISD::STRICT_FLDEXP, SL, VT, {A, Exp});
+  }
+
+  SDValue rsq(const SDLoc &SL, EVT VT, SDValue A) {
+    return emit(AMDGPUISD::RSQ, AMDGPUISD::STRICT_RSQ, SL, VT, {A});
+  }
+
+  SDValue sqrt(const SDLoc &SL, EVT VT, SDValue A) {
+    if (!Chain) {
+      SDValue SqrtID =
+          DAG.getTargetConstant(Intrinsic::amdgcn_sqrt, SL, MVT::i32);
+      return DAG.getNode(ISD::INTRINSIC_WO_CHAIN, SL, VT, SqrtID, A,
+                         Op->getFlags());
+    }
+
+    SDValue N =
+        DAG.getNode(AMDGPUISD::STRICT_SQRT, SL, DAG.getVTList(VT, MVT::Other),
+                    {Chain, A}, Op->getFlags());
+    Chain = N.getValue(1);
+    return N;
+  }
+
+private:
+  SDValue emit(unsigned Opc, unsigned StrictOpc, const SDLoc &SL, EVT VT,
+               ArrayRef<SDValue> Ops) {
+    if (!Chain)
+      return DAG.getNode(Opc, SL, VT, Ops, Op->getFlags());
+
+    SmallVector<SDValue> StrictOps;
+    StrictOps.push_back(Chain);
+    StrictOps.append(Ops.begin(), Ops.end());
+
+    SDValue N = DAG.getNode(StrictOpc, SL, DAG.getVTList(VT, MVT::Other),
+                            StrictOps, Op->getFlags());
+    Chain = N.getValue(1);
+    return N;
+  }
+};
+
+} // end anonymous namespace
+// ZLUDA changes end
+
 // Avoid the full correct expansion for f32 sqrt when promoting from f16.
 SDValue SITargetLowering::lowerFSQRTF16(SDValue Op, SelectionDAG &DAG) const {
   SDLoc SL(Op);
@@ -12816,13 +12895,13 @@ SDValue SITargetLowering::lowerFSQRTF32(SDValue Op, SelectionDAG &DAG) const {
   SDLoc DL(Op);
   SDNodeFlags Flags = Op->getFlags();
   MVT VT = Op.getValueType().getSimpleVT();
-  const SDValue X = Op.getOperand(0);
+  // ZLUDA changes start
+  FPExpansionBuilder B(Op, DAG);
+  const SDValue X = B.getOperand(0);
 
   if (allowApproxFunc(DAG, Flags)) {
     // Instruction is 1ulp but ignores denormals.
-    return DAG.getNode(
-        ISD::INTRINSIC_WO_CHAIN, DL, VT,
-        DAG.getTargetConstant(Intrinsic::amdgcn_sqrt, DL, MVT::i32), X, Flags);
+    return B.finish(DL, B.sqrt(DL, VT, X));
   }
 
   SDValue ScaleThreshold = DAG.getConstantFP(0x1.0p-96f, DL, VT);
@@ -12830,16 +12909,14 @@ SDValue SITargetLowering::lowerFSQRTF32(SDValue Op, SelectionDAG &DAG) const {
 
   SDValue ScaleUpFactor = DAG.getConstantFP(0x1.0p+32f, DL, VT);
 
-  SDValue ScaledX = DAG.getNode(ISD::FMUL, DL, VT, X, ScaleUpFactor, Flags);
+  SDValue ScaledX = B.fmul(DL, VT, X, ScaleUpFactor);
 
   SDValue SqrtX =
       DAG.getNode(ISD::SELECT, DL, VT, NeedScale, ScaledX, X, Flags);
 
   SDValue SqrtS;
   if (needsDenormHandlingF32(DAG, X, Flags)) {
-    SDValue SqrtID =
-        DAG.getTargetConstant(Intrinsic::amdgcn_sqrt, DL, MVT::i32);
-    SqrtS = DAG.getNode(ISD::INTRINSIC_WO_CHAIN, DL, VT, SqrtID, SqrtX, Flags);
+    SqrtS = B.sqrt(DL, VT, SqrtX);
 
     SDValue SqrtSAsInt = DAG.getNode(ISD::BITCAST, DL, MVT::i32, SqrtS);
     SDValue SqrtSNextDownInt =
@@ -12850,16 +12927,14 @@ SDValue SITargetLowering::lowerFSQRTF32(SDValue Op, SelectionDAG &DAG) const {
     SDValue NegSqrtSNextDown =
         DAG.getNode(ISD::FNEG, DL, VT, SqrtSNextDown, Flags);
 
-    SDValue SqrtVP =
-        DAG.getNode(ISD::FMA, DL, VT, NegSqrtSNextDown, SqrtS, SqrtX, Flags);
+    SDValue SqrtVP = B.fma(DL, VT, NegSqrtSNextDown, SqrtS, SqrtX);
 
     SDValue SqrtSNextUpInt = DAG.getNode(ISD::ADD, DL, MVT::i32, SqrtSAsInt,
                                          DAG.getConstant(1, DL, MVT::i32));
     SDValue SqrtSNextUp = DAG.getNode(ISD::BITCAST, DL, VT, SqrtSNextUpInt);
 
     SDValue NegSqrtSNextUp = DAG.getNode(ISD::FNEG, DL, VT, SqrtSNextUp, Flags);
-    SDValue SqrtVS =
-        DAG.getNode(ISD::FMA, DL, VT, NegSqrtSNextUp, SqrtS, SqrtX, Flags);
+    SDValue SqrtVS = B.fma(DL, VT, NegSqrtSNextUp, SqrtS, SqrtX);
 
     SDValue Zero = DAG.getConstantFP(0.0f, DL, VT);
     SDValue SqrtVPLE0 = DAG.getSetCC(DL, MVT::i1, SqrtVP, Zero, ISD::SETOLE);
@@ -12871,35 +12946,35 @@ SDValue SITargetLowering::lowerFSQRTF32(SDValue Op, SelectionDAG &DAG) const {
     SqrtS = DAG.getNode(ISD::SELECT, DL, VT, SqrtVPVSGT0, SqrtSNextUp, SqrtS,
                         Flags);
   } else {
-    SDValue SqrtR = DAG.getNode(AMDGPUISD::RSQ, DL, VT, SqrtX, Flags);
+    SDValue SqrtR = B.rsq(DL, VT, SqrtX);
 
-    SqrtS = DAG.getNode(ISD::FMUL, DL, VT, SqrtX, SqrtR, Flags);
+    SqrtS = B.fmul(DL, VT, SqrtX, SqrtR);
 
     SDValue Half = DAG.getConstantFP(0.5f, DL, VT);
-    SDValue SqrtH = DAG.getNode(ISD::FMUL, DL, VT, SqrtR, Half, Flags);
+    SDValue SqrtH = B.fmul(DL, VT, SqrtR, Half);
     SDValue NegSqrtH = DAG.getNode(ISD::FNEG, DL, VT, SqrtH, Flags);
 
-    SDValue SqrtE = DAG.getNode(ISD::FMA, DL, VT, NegSqrtH, SqrtS, Half, Flags);
-    SqrtH = DAG.getNode(ISD::FMA, DL, VT, SqrtH, SqrtE, SqrtH, Flags);
-    SqrtS = DAG.getNode(ISD::FMA, DL, VT, SqrtS, SqrtE, SqrtS, Flags);
+    SDValue SqrtE = B.fma(DL, VT, NegSqrtH, SqrtS, Half);
+    SqrtH = B.fma(DL, VT, SqrtH, SqrtE, SqrtH);
+    SqrtS = B.fma(DL, VT, SqrtS, SqrtE, SqrtS);
 
     SDValue NegSqrtS = DAG.getNode(ISD::FNEG, DL, VT, SqrtS, Flags);
-    SDValue SqrtD =
-        DAG.getNode(ISD::FMA, DL, VT, NegSqrtS, SqrtS, SqrtX, Flags);
-    SqrtS = DAG.getNode(ISD::FMA, DL, VT, SqrtD, SqrtH, SqrtS, Flags);
+    SDValue SqrtD = B.fma(DL, VT, NegSqrtS, SqrtS, SqrtX);
+    SqrtS = B.fma(DL, VT, SqrtD, SqrtH, SqrtS);
   }
 
   SDValue ScaleDownFactor = DAG.getConstantFP(0x1.0p-16f, DL, VT);
 
-  SDValue ScaledDown =
-      DAG.getNode(ISD::FMUL, DL, VT, SqrtS, ScaleDownFactor, Flags);
+  SDValue ScaledDown = B.fmul(DL, VT, SqrtS, ScaleDownFactor);
 
   SqrtS = DAG.getNode(ISD::SELECT, DL, VT, NeedScale, ScaledDown, SqrtS, Flags);
   SDValue IsZeroOrInf =
       DAG.getNode(ISD::IS_FPCLASS, DL, MVT::i1, SqrtX,
                   DAG.getTargetConstant(fcZero | fcPosInf, DL, MVT::i32));
 
-  return DAG.getNode(ISD::SELECT, DL, VT, IsZeroOrInf, SqrtX, SqrtS, Flags);
+  return B.finish(
+      DL, DAG.getNode(ISD::SELECT, DL, VT, IsZeroOrInf, SqrtX, SqrtS, Flags));
+  // ZLUDA changes end
 }
 
 SDValue SITargetLowering::lowerFSQRTF64(SDValue Op, SelectionDAG &DAG) const {
@@ -12927,7 +13002,9 @@ SDValue SITargetLowering::lowerFSQRTF64(SDValue Op, SelectionDAG &DAG) const {
 
   SDLoc DL(Op);
 
-  SDValue X = Op.getOperand(0);
+  // ZLUDA changes start
+  FPExpansionBuilder B(Op, DAG);
+  SDValue X = B.getOperand(0);
   SDValue ScaleConstant = DAG.getConstantFP(0x1.0p-767, DL, MVT::f64);
 
   SDValue Scaling = DAG.getSetCC(DL, MVT::i1, X, ScaleConstant, ISD::SETOLT);
@@ -12938,38 +13015,36 @@ SDValue SITargetLowering::lowerFSQRTF64(SDValue Op, SelectionDAG &DAG) const {
   SDValue ScaleUpFactor = DAG.getConstant(256, DL, MVT::i32);
   SDValue ScaleUp =
       DAG.getNode(ISD::SELECT, DL, MVT::i32, Scaling, ScaleUpFactor, ZeroInt);
-  SDValue SqrtX = DAG.getNode(ISD::FLDEXP, DL, MVT::f64, X, ScaleUp, Flags);
+  SDValue SqrtX = B.fldexp(DL, MVT::f64, X, ScaleUp);
 
-  SDValue SqrtY = DAG.getNode(AMDGPUISD::RSQ, DL, MVT::f64, SqrtX);
+  SDValue SqrtY = B.rsq(DL, MVT::f64, SqrtX);
 
-  SDValue SqrtS0 = DAG.getNode(ISD::FMUL, DL, MVT::f64, SqrtX, SqrtY);
+  SDValue SqrtS0 = B.fmul(DL, MVT::f64, SqrtX, SqrtY);
 
   SDValue Half = DAG.getConstantFP(0.5, DL, MVT::f64);
-  SDValue SqrtH0 = DAG.getNode(ISD::FMUL, DL, MVT::f64, SqrtY, Half);
+  SDValue SqrtH0 = B.fmul(DL, MVT::f64, SqrtY, Half);
 
   SDValue NegSqrtH0 = DAG.getNode(ISD::FNEG, DL, MVT::f64, SqrtH0);
-  SDValue SqrtR0 = DAG.getNode(ISD::FMA, DL, MVT::f64, NegSqrtH0, SqrtS0, Half);
+  SDValue SqrtR0 = B.fma(DL, MVT::f64, NegSqrtH0, SqrtS0, Half);
 
-  SDValue SqrtH1 = DAG.getNode(ISD::FMA, DL, MVT::f64, SqrtH0, SqrtR0, SqrtH0);
+  SDValue SqrtH1 = B.fma(DL, MVT::f64, SqrtH0, SqrtR0, SqrtH0);
 
-  SDValue SqrtS1 = DAG.getNode(ISD::FMA, DL, MVT::f64, SqrtS0, SqrtR0, SqrtS0);
+  SDValue SqrtS1 = B.fma(DL, MVT::f64, SqrtS0, SqrtR0, SqrtS0);
 
   SDValue NegSqrtS1 = DAG.getNode(ISD::FNEG, DL, MVT::f64, SqrtS1);
-  SDValue SqrtD0 =
-      DAG.getNode(ISD::FMA, DL, MVT::f64, NegSqrtS1, SqrtS1, SqrtX);
+  SDValue SqrtD0 = B.fma(DL, MVT::f64, NegSqrtS1, SqrtS1, SqrtX);
 
-  SDValue SqrtS2 = DAG.getNode(ISD::FMA, DL, MVT::f64, SqrtD0, SqrtH1, SqrtS1);
+  SDValue SqrtS2 = B.fma(DL, MVT::f64, SqrtD0, SqrtH1, SqrtS1);
 
   SDValue NegSqrtS2 = DAG.getNode(ISD::FNEG, DL, MVT::f64, SqrtS2);
-  SDValue SqrtD1 =
-      DAG.getNode(ISD::FMA, DL, MVT::f64, NegSqrtS2, SqrtS2, SqrtX);
+  SDValue SqrtD1 = B.fma(DL, MVT::f64, NegSqrtS2, SqrtS2, SqrtX);
 
-  SDValue SqrtRet = DAG.getNode(ISD::FMA, DL, MVT::f64, SqrtD1, SqrtH1, SqrtS2);
+  SDValue SqrtRet = B.fma(DL, MVT::f64, SqrtD1, SqrtH1, SqrtS2);
 
   SDValue ScaleDownFactor = DAG.getSignedConstant(-128, DL, MVT::i32);
   SDValue ScaleDown =
       DAG.getNode(ISD::SELECT, DL, MVT::i32, Scaling, ScaleDownFactor, ZeroInt);
-  SqrtRet = DAG.getNode(ISD::FLDEXP, DL, MVT::f64, SqrtRet, ScaleDown, Flags);
+  SqrtRet = B.fldexp(DL, MVT::f64, SqrtRet, ScaleDown);
 
   // TODO: Switch to fcmp oeq 0 for finite only. Can't fully remove this check
   // with finite only or nsz because rsq(+/-0) = +/-inf
@@ -12980,8 +13055,9 @@ SDValue SITargetLowering::lowerFSQRTF64(SDValue Op, SelectionDAG &DAG) const {
                   DAG.getTargetConstant(fcZero | fcPosInf, DL, MVT::i32));
 
   // If x is +INF, +0, or -0, use its original value
-  return DAG.getNode(ISD::SELECT, DL, MVT::f64, IsZeroOrInf, SqrtX, SqrtRet,
-                     Flags);
+  return B.finish(DL, DAG.getNode(ISD::SELECT, DL, MVT::f64, IsZeroOrInf, SqrtX,
+                                  SqrtRet, Flags));
+  // ZLUDA changes end
 }
 
 SDValue SITargetLowering::LowerTrig(SDValue Op, SelectionDAG &DAG) const {
@@ -14639,6 +14715,7 @@ bool SITargetLowering::isCanonicalized(SelectionDAG &DAG, SDValue Op,
   case ISD::FDIV:
   case ISD::FREM:
   // ZLUDA changes start
+  case ISD::STRICT_FSQRT:
   case ISD::STRICT_FP_ROUND:
   case ISD::STRICT_FP_EXTEND:
   case ISD::STRICT_FP16_TO_FP:
@@ -14662,6 +14739,8 @@ bool SITargetLowering::isCanonicalized(SelectionDAG &DAG, SDValue Op,
   case AMDGPUISD::RCP_IFLAG:
   // ZLUDA changes start
   case AMDGPUISD::STRICT_RCP:
+  case AMDGPUISD::STRICT_RSQ:
+  case AMDGPUISD::STRICT_SQRT:
   // ZLUDA changes end
   case AMDGPUISD::LOG:
   case AMDGPUISD::EXP:

@@ -3,6 +3,7 @@
 ; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx1250 < %s | FileCheck -check-prefixes=GFX1250 %s
 
 define bfloat @v_constrained_fptrunc_f32_to_bf16_fpexcept_ignore(float %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_f32_to_bf16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -25,6 +26,7 @@ define bfloat @v_constrained_fptrunc_f32_to_bf16_fpexcept_ignore(float %arg) #0 
 }
 
 define bfloat @v_constrained_fptrunc_f64_to_bf16_fpexcept_ignore(double %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_f64_to_bf16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -70,6 +72,7 @@ define bfloat @v_constrained_fptrunc_f64_to_bf16_fpexcept_ignore(double %arg) #0
 }
 
 define void @v_constrained_fptrunc_f64_to_bf16_fpexcept_ignore_noabi(double %arg, ptr addrspace(1) %ptr) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_f64_to_bf16_fpexcept_ignore_noabi:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -116,6 +119,7 @@ define void @v_constrained_fptrunc_f64_to_bf16_fpexcept_ignore_noabi(double %arg
 }
 
 define bfloat @v_constrained_fneg_fptrunc_f32_to_bf16_fpexcept_ignore(float %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fneg_fptrunc_f32_to_bf16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -140,6 +144,7 @@ define bfloat @v_constrained_fneg_fptrunc_f32_to_bf16_fpexcept_ignore(float %arg
 }
 
 define bfloat @v_constrained_fptrunc_fneg_f32_to_bf16_fpexcept_ignore(float %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_fneg_f32_to_bf16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -164,6 +169,7 @@ define bfloat @v_constrained_fptrunc_fneg_f32_to_bf16_fpexcept_ignore(float %arg
 }
 
 define bfloat @v_constrained_fneg_fptrunc_f64_to_bf16_fpexcept_ignore(double %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fneg_fptrunc_f64_to_bf16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -211,6 +217,7 @@ define bfloat @v_constrained_fneg_fptrunc_f64_to_bf16_fpexcept_ignore(double %ar
 }
 
 define <2 x bfloat> @v_constrained_fptrunc_v2f32_to_v2bf16_fpexcept_ignore(<2 x float> %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_v2f32_to_v2bf16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -238,6 +245,7 @@ define <2 x bfloat> @v_constrained_fptrunc_v2f32_to_v2bf16_fpexcept_ignore(<2 x 
 }
 
 define <2 x bfloat> @v_constrained_fptrunc_v2f64_to_v2bf16_fpexcept_ignore(<2 x double> %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_v2f64_to_v2bf16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)

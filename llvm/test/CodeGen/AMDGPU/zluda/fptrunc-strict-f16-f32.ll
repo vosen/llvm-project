@@ -3,12 +3,13 @@
 ; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx1250 < %s | FileCheck -check-prefixes=GFX1250 %s
 
 define <2 x half> @v_constrained_fptrunc_v2f32_to_v2f16_fpexcept_ignore(<2 x float> %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_v2f32_to_v2f16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
 ; GFX1010-NEXT:    v_cvt_f16_f32_e32 v1, v1
-; GFX1010-NEXT:    v_perm_b32 v0, v1, v0, 0x5040100
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
+; GFX1010-NEXT:    v_pack_b32_f16 v0, v0, v1
 ; GFX1010-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX1250-LABEL: v_constrained_fptrunc_v2f32_to_v2f16_fpexcept_ignore:
@@ -22,15 +23,16 @@ define <2 x half> @v_constrained_fptrunc_v2f32_to_v2f16_fpexcept_ignore(<2 x flo
 }
 
 define <4 x half> @v_constrained_fptrunc_v4f32_to_v4f16_fpexcept_ignore(<4 x float> %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_v4f32_to_v4f16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v2, v2
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v1, v1
 ; GFX1010-NEXT:    v_cvt_f16_f32_e32 v3, v3
-; GFX1010-NEXT:    v_perm_b32 v0, v1, v0, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v1, v3, v2, 0x5040100
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v1, v1
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v2, v2
+; GFX1010-NEXT:    v_pack_b32_f16 v0, v0, v1
+; GFX1010-NEXT:    v_pack_b32_f16 v1, v2, v3
 ; GFX1010-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX1250-LABEL: v_constrained_fptrunc_v4f32_to_v4f16_fpexcept_ignore:
@@ -45,21 +47,22 @@ define <4 x half> @v_constrained_fptrunc_v4f32_to_v4f16_fpexcept_ignore(<4 x flo
 }
 
 define <8 x half> @v_constrained_fptrunc_v8f32_to_v8f16_fpexcept_ignore(<8 x float> %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_v8f32_to_v8f16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v6, v6
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v4, v4
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v2, v2
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v1, v1
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v3, v3
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v5, v5
 ; GFX1010-NEXT:    v_cvt_f16_f32_e32 v7, v7
-; GFX1010-NEXT:    v_perm_b32 v0, v1, v0, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v1, v3, v2, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v2, v5, v4, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v3, v7, v6, 0x5040100
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v5, v5
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v3, v3
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v1, v1
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v2, v2
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v4, v4
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v6, v6
+; GFX1010-NEXT:    v_pack_b32_f16 v0, v0, v1
+; GFX1010-NEXT:    v_pack_b32_f16 v1, v2, v3
+; GFX1010-NEXT:    v_pack_b32_f16 v2, v4, v5
+; GFX1010-NEXT:    v_pack_b32_f16 v3, v6, v7
 ; GFX1010-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX1250-LABEL: v_constrained_fptrunc_v8f32_to_v8f16_fpexcept_ignore:
@@ -76,33 +79,34 @@ define <8 x half> @v_constrained_fptrunc_v8f32_to_v8f16_fpexcept_ignore(<8 x flo
 }
 
 define <16 x half> @v_constrained_fptrunc_v16f32_to_v16f16_fpexcept_ignore(<16 x float> %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_v16f32_to_v16f16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v14, v14
 ; GFX1010-NEXT:    v_cvt_f16_f32_e32 v15, v15
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v12, v12
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v14, v14
 ; GFX1010-NEXT:    v_cvt_f16_f32_e32 v13, v13
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v10, v10
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v12, v12
 ; GFX1010-NEXT:    v_cvt_f16_f32_e32 v11, v11
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v8, v8
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v6, v6
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v4, v4
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v2, v2
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v1, v1
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v3, v3
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v5, v5
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v7, v7
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v10, v10
 ; GFX1010-NEXT:    v_cvt_f16_f32_e32 v9, v9
-; GFX1010-NEXT:    v_perm_b32 v0, v1, v0, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v1, v3, v2, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v2, v5, v4, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v3, v7, v6, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v4, v9, v8, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v5, v11, v10, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v6, v13, v12, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v7, v15, v14, 0x5040100
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v7, v7
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v5, v5
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v3, v3
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v1, v1
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v2, v2
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v4, v4
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v6, v6
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v8, v8
+; GFX1010-NEXT:    v_pack_b32_f16 v0, v0, v1
+; GFX1010-NEXT:    v_pack_b32_f16 v1, v2, v3
+; GFX1010-NEXT:    v_pack_b32_f16 v2, v4, v5
+; GFX1010-NEXT:    v_pack_b32_f16 v3, v6, v7
+; GFX1010-NEXT:    v_pack_b32_f16 v4, v8, v9
+; GFX1010-NEXT:    v_pack_b32_f16 v5, v10, v11
+; GFX1010-NEXT:    v_pack_b32_f16 v6, v12, v13
+; GFX1010-NEXT:    v_pack_b32_f16 v7, v14, v15
 ; GFX1010-NEXT:    s_setpc_b64 s[30:31]
 ;
 ; GFX1250-LABEL: v_constrained_fptrunc_v16f32_to_v16f16_fpexcept_ignore:
@@ -123,15 +127,16 @@ define <16 x half> @v_constrained_fptrunc_v16f32_to_v16f16_fpexcept_ignore(<16 x
 }
 
 define void @v_constrained_fptrunc_v4f32_to_v4f16_fpexcept_ignore_noabi(<4 x float> %arg, ptr addrspace(1) %ptr) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_v4f32_to_v4f16_fpexcept_ignore_noabi:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v2, v2
 ; GFX1010-NEXT:    v_cvt_f16_f32_e32 v3, v3
-; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v2, v2
 ; GFX1010-NEXT:    v_cvt_f16_f32_e32 v6, v1
-; GFX1010-NEXT:    v_perm_b32 v1, v3, v2, 0x5040100
-; GFX1010-NEXT:    v_perm_b32 v0, v6, v0, 0x5040100
+; GFX1010-NEXT:    v_cvt_f16_f32_e32 v0, v0
+; GFX1010-NEXT:    v_pack_b32_f16 v1, v2, v3
+; GFX1010-NEXT:    v_pack_b32_f16 v0, v0, v6
 ; GFX1010-NEXT:    global_store_dwordx2 v[4:5], v[0:1], off
 ; GFX1010-NEXT:    s_setpc_b64 s[30:31]
 ;
@@ -150,6 +155,7 @@ define void @v_constrained_fptrunc_v4f32_to_v4f16_fpexcept_ignore_noabi(<4 x flo
 
 ; Scalar f32 -> f16 (selects directly via v_cvt_f16_f32).
 define half @v_constrained_fptrunc_f32_to_f16_fpexcept_ignore(float %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_f32_to_f16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -168,6 +174,7 @@ define half @v_constrained_fptrunc_f32_to_f16_fpexcept_ignore(float %arg) #0 {
 
 ; Stored result (void ABI context).
 define void @v_constrained_fptrunc_f32_to_f16_fpexcept_ignore_noabi(float %arg, ptr addrspace(1) %ptr) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_f32_to_f16_fpexcept_ignore_noabi:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -190,6 +197,7 @@ define void @v_constrained_fptrunc_f32_to_f16_fpexcept_ignore_noabi(float %arg, 
 
 ; (fneg (strict_fp_round x)) -> (strict_fp_round (fneg x)) via performFNegCombine.
 define half @v_constrained_fneg_fptrunc_f32_to_f16_fpexcept_ignore(float %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fneg_fptrunc_f32_to_f16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
@@ -209,6 +217,7 @@ define half @v_constrained_fneg_fptrunc_f32_to_f16_fpexcept_ignore(float %arg) #
 
 ; Negated source folds into the conversion as a source modifier.
 define half @v_constrained_fptrunc_fneg_f32_to_f16_fpexcept_ignore(float %arg) #0 {
+;
 ; GFX1010-LABEL: v_constrained_fptrunc_fneg_f32_to_f16_fpexcept_ignore:
 ; GFX1010:       ; %bb.0:
 ; GFX1010-NEXT:    s_waitcnt vmcnt(0) expcnt(0) lgkmcnt(0)
