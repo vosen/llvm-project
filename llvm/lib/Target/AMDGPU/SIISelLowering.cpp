@@ -13,6 +13,9 @@
 
 #include "SIISelLowering.h"
 #include "AMDGPU.h"
+// ZLUDA changes start
+#include "FPExpansionBuilder.h"
+// ZLUDA changes end
 #include "AMDGPUInstrInfo.h"
 #include "AMDGPULaneMaskUtils.h"
 #include "AMDGPUTargetMachine.h"
@@ -223,9 +226,13 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
     }
 
     // ZLUDA changes start
-    setOperationAction({ISD::FP_ROUND, ISD::STRICT_FP_ROUND}, MVT::bf16, Expand);
     setOperationAction(ISD::STRICT_FMA, MVT::bf16, Promote);
     AddPromotedToType(ISD::STRICT_FMA, MVT::bf16, MVT::f32);
+    // ZLUDA changes end
+
+    setOperationAction(ISD::FP_ROUND, MVT::bf16, Expand);
+    // ZLUDA changes start
+    setOperationAction(ISD::STRICT_FP_ROUND, MVT::bf16, Expand);
     // ZLUDA changes end
 
     setOperationAction(ISD::SELECT, MVT::bf16, Promote);
@@ -239,6 +246,10 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
     // sources.
     setOperationAction(ISD::FP_TO_SINT, MVT::i32, Custom);
     setOperationAction(ISD::FP_TO_UINT, MVT::i32, Custom);
+    // ZLUDA changes start
+    setOperationAction(ISD::STRICT_FP_TO_SINT, MVT::i32, Custom);
+    setOperationAction(ISD::STRICT_FP_TO_UINT, MVT::i32, Custom);
+    // ZLUDA changes end
   }
 
   setTruncStoreAction(MVT::v2i32, MVT::v2i16, Expand);
@@ -273,9 +284,9 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::SELECT, MVT::f64, Promote);
   AddPromotedToType(ISD::SELECT, MVT::f64, MVT::i64);
 
+  setOperationAction(ISD::FSQRT, {MVT::f32, MVT::f64}, Custom);
   // ZLUDA changes start
-  setOperationAction({ISD::FSQRT, ISD::STRICT_FSQRT}, {MVT::f32, MVT::f64},
-                     Custom);
+  setOperationAction(ISD::STRICT_FSQRT, {MVT::f32, MVT::f64}, Custom);
   // ZLUDA changes end
 
   setOperationAction(ISD::SELECT_CC,
@@ -571,22 +582,19 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
                      Legal);
   setOperationAction(ISD::FFREXP, {MVT::f32, MVT::f64}, Custom);
 
+  setOperationAction({ISD::FSIN, ISD::FCOS, ISD::FDIV}, MVT::f32, Custom);
+  setOperationAction(ISD::FDIV, MVT::f64, Custom);
   // ZLUDA changes start
-  setOperationAction({ISD::FSIN, ISD::FCOS, ISD::FDIV, ISD::STRICT_FDIV}, MVT::f32, Custom);
-  setOperationAction({ISD::FDIV, ISD::STRICT_FDIV}, MVT::f64, Custom);
+  setOperationAction(ISD::STRICT_FDIV, MVT::f32, Custom);
+  setOperationAction(ISD::STRICT_FDIV, MVT::f64, Custom);
   // ZLUDA changes end
 
   setOperationAction(ISD::BF16_TO_FP, {MVT::i16, MVT::f32, MVT::f64}, Expand);
   setOperationAction(ISD::FP_TO_BF16, {MVT::i16, MVT::f32, MVT::f64}, Expand);
-
   // ZLUDA changes start
+  // Those two don't carry rounding mode, so we just convert them to non-strict
   setOperationAction(ISD::STRICT_BF16_TO_FP, {MVT::i16, MVT::f32, MVT::f64}, Custom);
   setOperationAction(ISD::STRICT_FP_TO_BF16, {MVT::i16, MVT::f32, MVT::f64}, Custom);
-  setOperationAction(ISD::STRICT_FP16_TO_FP, {MVT::i16, MVT::f32, MVT::f64}, Custom);
-  setOperationAction(ISD::STRICT_FP_TO_FP16, {MVT::i16, MVT::f32, MVT::f64}, Custom);
-  setOperationAction({ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT,
-                      ISD::STRICT_SINT_TO_FP, ISD::STRICT_UINT_TO_FP},
-                     {MVT::i1, MVT::i16, MVT::i32, MVT::i64}, Custom);
   // ZLUDA changes end
 
   // Custom lower these because we can't specify a rule based on an illegal
@@ -618,12 +626,26 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
     AddPromotedToType(ISD::FP16_TO_FP, MVT::i16, MVT::i32);
     setOperationAction(ISD::FP_TO_FP16, MVT::i16, Promote);
     AddPromotedToType(ISD::FP_TO_FP16, MVT::i16, MVT::i32);
+    // ZLUDA changes start
+    setOperationAction(ISD::STRICT_FP16_TO_FP, MVT::i16, Promote);
+    AddPromotedToType(ISD::STRICT_FP16_TO_FP, MVT::i16, MVT::i32);
+    setOperationAction(ISD::STRICT_FP_TO_FP16, MVT::i16, Promote);
+    AddPromotedToType(ISD::STRICT_FP_TO_FP16, MVT::i16, MVT::i32);
+    // ZLUDA changes end
 
     setOperationAction({ISD::FP_TO_SINT, ISD::FP_TO_UINT}, MVT::i16, Custom);
     setOperationAction({ISD::SINT_TO_FP, ISD::UINT_TO_FP}, MVT::i16, Custom);
     setOperationAction({ISD::SINT_TO_FP, ISD::UINT_TO_FP}, MVT::i1, Custom);
 
     setOperationAction({ISD::SINT_TO_FP, ISD::UINT_TO_FP}, MVT::i32, Custom);
+
+    // ZLUDA changes start
+    setOperationAction({ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT}, MVT::i16, Custom);
+    setOperationAction({ISD::STRICT_SINT_TO_FP, ISD::STRICT_UINT_TO_FP}, MVT::i16, Custom);
+    setOperationAction({ISD::STRICT_SINT_TO_FP, ISD::STRICT_UINT_TO_FP}, MVT::i1, Custom);
+
+    setOperationAction({ISD::STRICT_SINT_TO_FP, ISD::STRICT_UINT_TO_FP}, MVT::i32, Custom);
+    // ZLUDA changes end
 
     // F16 - Constant Actions.
     setOperationAction(ISD::ConstantFP, MVT::f16, Legal);
@@ -652,6 +674,10 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
 
     setOperationAction({ISD::FP_TO_SINT, ISD::FP_TO_UINT}, MVT::f16, Promote);
     setOperationAction({ISD::FP_TO_SINT, ISD::FP_TO_UINT}, MVT::bf16, Promote);
+    // ZLUDA change start
+    setOperationAction({ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT}, MVT::f16, Custom);
+    setOperationAction({ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT}, MVT::bf16, Custom);
+    // ZLUDA change start
 
     // F16 - VOP2 Actions.
     setOperationAction({ISD::BR_CC, ISD::SELECT_CC}, {MVT::f16, MVT::bf16},
@@ -958,8 +984,10 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
                      {MVT::v2f16, MVT::v2i16, MVT::v2bf16, MVT::v3f16,
                       MVT::v3i16, MVT::v4f16, MVT::v4i16, MVT::v4bf16,
                       MVT::v8i16, MVT::v8f16, MVT::v8bf16, MVT::Other, MVT::f16,
-                      MVT::f32, MVT::f64, MVT::i16, MVT::bf16, MVT::i8,
-                      MVT::i128},
+                      // ZLUDA changes start
+                      MVT::f32, MVT::f64, 
+                      // ZLUDA changes end
+                      MVT::i16, MVT::bf16, MVT::i8, MVT::i128},
                      Custom);
 
   setOperationAction(ISD::INTRINSIC_VOID,
@@ -982,9 +1010,9 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::MUL, MVT::i1, Promote);
 
   if (Subtarget->hasBF16ConversionInsts()) {
+    setOperationAction(ISD::FP_ROUND, {MVT::bf16, MVT::v2bf16}, Custom);
     // ZLUDA changes start
-    setOperationAction({ISD::FP_ROUND, ISD::STRICT_FP_ROUND},
-                       {MVT::bf16, MVT::v2bf16}, Custom);
+    setOperationAction(ISD::STRICT_FP_ROUND, {MVT::bf16, MVT::v2bf16}, Custom);
     // ZLUDA changes end
     setOperationAction(ISD::BUILD_VECTOR, MVT::v2bf16, Legal);
   }
@@ -6764,35 +6792,22 @@ SDValue SITargetLowering::splitTernaryVectorOp(SDValue Op,
 }
 
 // ZLUDA changes start
-// FIXME: the incoming chain is only forwarded, it is not attached to the
-// conversion itself, so the result can still be reordered or CSEd across a
-// SET_ROUNDING. Same shortcut as STRICT_FEXP/STRICT_FSETCC above.
-static SDValue lowerStrictConversion(SDValue Op, SelectionDAG &DAG) {
+// Opcodes here don't have a rounding mode, only fpexception, which we don't
+// care about
+static SDValue lowerStrictAsNonStrict(SDValue Op, SelectionDAG &DAG) {
   unsigned Opc;
   switch (Op.getOpcode()) {
   case ISD::STRICT_FP16_TO_FP:
     Opc = ISD::FP16_TO_FP;
     break;
-  case ISD::STRICT_FP_TO_FP16:
-    Opc = ISD::FP_TO_FP16;
-    break;
   case ISD::STRICT_BF16_TO_FP:
     Opc = ISD::BF16_TO_FP;
-    break;
-  case ISD::STRICT_FP_TO_BF16:
-    Opc = ISD::FP_TO_BF16;
     break;
   case ISD::STRICT_FP_TO_SINT:
     Opc = ISD::FP_TO_SINT;
     break;
   case ISD::STRICT_FP_TO_UINT:
     Opc = ISD::FP_TO_UINT;
-    break;
-  case ISD::STRICT_SINT_TO_FP:
-    Opc = ISD::SINT_TO_FP;
-    break;
-  case ISD::STRICT_UINT_TO_FP:
-    Opc = ISD::UINT_TO_FP;
     break;
   default:
     llvm_unreachable("not a strict conversion");
@@ -6958,14 +6973,10 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     return lowerPREFETCH(Op, DAG);
   // ZLUDA changes start
   case ISD::STRICT_FP16_TO_FP:
-  case ISD::STRICT_FP_TO_FP16:
   case ISD::STRICT_BF16_TO_FP:
-  case ISD::STRICT_FP_TO_BF16:
   case ISD::STRICT_FP_TO_SINT:
   case ISD::STRICT_FP_TO_UINT:
-  case ISD::STRICT_SINT_TO_FP:
-  case ISD::STRICT_UINT_TO_FP:
-    return lowerStrictConversion(Op, DAG);
+    return lowerStrictAsNonStrict(Op, DAG);
   // ZLUDA changes end
   case ISD::FP_EXTEND:
   case ISD::STRICT_FP_EXTEND:
@@ -7846,11 +7857,8 @@ SDValue SITargetLowering::lowerFP_ROUND(SDValue Op, SelectionDAG &DAG) const {
     if (!Subtarget->has16BitInsts()) {
       // ZLUDA changes start
       if (IsStrict) {
-        SDValue FpToFp16 = DAG.getNode(
-            ISD::STRICT_FP_TO_FP16, DL, {MVT::i32, MVT::Other}, {Chain, Src});
-        SDValue Trunc = DAG.getNode(ISD::TRUNCATE, DL, MVT::i16, FpToFp16);
-        SDValue Result = DAG.getNode(ISD::BITCAST, DL, MVT::f16, Trunc);
-        return DAG.getMergeValues({Result, FpToFp16.getValue(1)}, DL);
+        // We don't care about old targets
+        return SDValue();
       }
       // ZLUDA changes end
       SDValue FpToFp16 = DAG.getNode(ISD::FP_TO_FP16, DL, MVT::i32, Src);
@@ -12185,89 +12193,6 @@ SDValue SITargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) const {
   return DAG.getNode(ISD::BITCAST, DL, VT, Res);
 }
 
-// ZLUDA changes start
-namespace {
-class FPExpansionBuilder {
-  SelectionDAG &DAG;
-  SDValue Op;
-  SDValue Chain;
-
-public:
-  FPExpansionBuilder(SDValue Op, SelectionDAG &DAG)
-      : DAG(DAG), Op(Op),
-        Chain(Op->isStrictFPOpcode() ? Op.getOperand(0) : SDValue()) {}
-
-  SDValue getOperand(unsigned I) const {
-    return Op.getOperand(Op->isStrictFPOpcode() ? I + 1 : I);
-  }
-
-  SDValue finish(const SDLoc &SL, SDValue Result) {
-    if (!Chain)
-      return Result;
-    return DAG.getMergeValues({Result, Chain}, SL);
-  }
-
-  SDValue fmul(const SDLoc &SL, EVT VT, SDValue A, SDValue B) {
-    return emit(ISD::FMUL, ISD::STRICT_FMUL, SL, VT, {A, B});
-  }
-
-  SDValue fma(const SDLoc &SL, EVT VT, SDValue A, SDValue B, SDValue C) {
-    return emit(ISD::FMA, ISD::STRICT_FMA, SL, VT, {A, B, C});
-  }
-
-  SDValue fldexp(const SDLoc &SL, EVT VT, SDValue A, SDValue Exp) {
-    return emit(ISD::FLDEXP, ISD::STRICT_FLDEXP, SL, VT, {A, Exp});
-  }
-
-  SDValue rcpNoflags(const SDLoc &SL, EVT VT, SDValue A) {
-    return emit(AMDGPUISD::RCP, AMDGPUISD::STRICT_RCP, SL, VT, {A},
-                SDNodeFlags());
-  }
-
-  SDValue rsq(const SDLoc &SL, EVT VT, SDValue A) {
-    return emit(AMDGPUISD::RSQ, AMDGPUISD::STRICT_RSQ, SL, VT, {A});
-  }
-
-  SDValue sqrt(const SDLoc &SL, EVT VT, SDValue A) {
-    if (!Chain) {
-      SDValue SqrtID =
-          DAG.getTargetConstant(Intrinsic::amdgcn_sqrt, SL, MVT::i32);
-      return DAG.getNode(ISD::INTRINSIC_WO_CHAIN, SL, VT, SqrtID, A,
-                         Op->getFlags());
-    }
-
-    SDValue N =
-        DAG.getNode(AMDGPUISD::STRICT_SQRT, SL, DAG.getVTList(VT, MVT::Other),
-                    {Chain, A}, Op->getFlags());
-    Chain = N.getValue(1);
-    return N;
-  }
-
-private:
-  SDValue emit(unsigned Opc, unsigned StrictOpc, const SDLoc &SL, EVT VT,
-               ArrayRef<SDValue> Ops) {
-    return emit(Opc, StrictOpc, SL, VT, Ops, Op->getFlags());
-  }
-
-  SDValue emit(unsigned Opc, unsigned StrictOpc, const SDLoc &SL, EVT VT,
-               ArrayRef<SDValue> Ops, SDNodeFlags Flags) {
-    if (!Chain)
-      return DAG.getNode(Opc, SL, VT, Ops, Flags);
-
-    SmallVector<SDValue> StrictOps;
-    StrictOps.push_back(Chain);
-    StrictOps.append(Ops.begin(), Ops.end());
-
-    SDValue N = DAG.getNode(StrictOpc, SL, DAG.getVTList(VT, MVT::Other),
-                            StrictOps, Flags);
-    Chain = N.getValue(1);
-    return N;
-  }
-};
-
-} // end anonymous namespace
-// ZLUDA changes end
-
 // Catch division cases where we can use shortcuts with rcp and rsq
 // instructions.
 SDValue SITargetLowering::lowerFastUnsafeFDIV(SDValue Op,
@@ -14718,6 +14643,9 @@ bool SITargetLowering::isCanonicalized(SelectionDAG &DAG, SDValue Op,
   case AMDGPUISD::CVT_F32_UBYTE2:
   case AMDGPUISD::CVT_F32_UBYTE3:
   case AMDGPUISD::FP_TO_FP16:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_FP_TO_FP16:
+  // ZLUDA changes end
   case AMDGPUISD::SIN_HW:
   case AMDGPUISD::COS_HW:
     return true;

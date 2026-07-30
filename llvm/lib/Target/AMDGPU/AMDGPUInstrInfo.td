@@ -171,6 +171,13 @@ def AMDGPUpknorm_u16_f32_impl : SDNode<"AMDGPUISD::CVT_PKNORM_U16_F32", AMDGPUFP
 def AMDGPUpk_i16_i32_impl : SDNode<"AMDGPUISD::CVT_PK_I16_I32", AMDGPUIntPackOp>;
 def AMDGPUpk_u16_u32_impl : SDNode<"AMDGPUISD::CVT_PK_U16_U32", AMDGPUIntPackOp>;
 def AMDGPUfp_to_f16 : SDNode<"AMDGPUISD::FP_TO_FP16" , SDTFPToIntOp>;
+// ZLUDA changes start
+let IsStrictFP = true in {
+  def AMDGPUfp_to_f16_strict : SDNode<"AMDGPUISD::STRICT_FP_TO_FP16",
+                                      SDTFPToIntOp,
+                                      [SDNPHasChain]>;
+}
+// ZLUDA changes end
 
 
 def AMDGPUfp_class_impl : SDNode<"AMDGPUISD::FP_CLASS", AMDGPUFPClassOp>;
@@ -437,6 +444,11 @@ def AMDGPUrcp : PatFrags<(ops node:$src), [(int_amdgcn_rcp node:$src),
                                            (AMDGPUrcp_strict_impl node:$src),
 // ZLUDA changes end
                                            (AMDGPUrcp_impl node:$src)]>;
+// ZLUDA changes start
+def AMDGPUany_fp_to_f16 : PatFrags<(ops node:$src),
+                                   [(AMDGPUfp_to_f16_strict node:$src),
+                                    (AMDGPUfp_to_f16 node:$src)]>;
+// ZLUDA changes end
 def AMDGPUrcp_legacy : PatFrags<(ops node:$src), [(int_amdgcn_rcp_legacy node:$src),
                                                   (AMDGPUrcp_legacy_impl node:$src)]>;
 

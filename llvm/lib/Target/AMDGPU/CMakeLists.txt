@@ -120,6 +120,9 @@ add_llvm_target(AMDGPUCodeGen
   AMDGPUTargetTransformInfo.cpp
   AMDGPUWaitSGPRHazards.cpp
   AMDGPUUnifyDivergentExitNodes.cpp
+  # ZLUDA changes start
+  FPExpansionBuilder.cpp
+  # ZLUDA changes end
   R600MachineCFGStructurizer.cpp
   GCNCreateVOPD.cpp
   GCNDPPCombine.cpp
