@@ -39,6 +39,21 @@ static cl::opt<bool> AMDGPUBypassSlowDiv(
   cl::desc("Skip 64-bit divide for dynamic 32-bit values"),
   cl::init(true));
 
+// ZLUDA changes start
+static unsigned getStrictFPOpcode(unsigned Opc) {
+  switch (Opc) {
+  default:
+    return Opc;
+#define DAG_INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)               \
+  case ISD::DAGN:                                                              \
+    return ISD::STRICT_##DAGN;
+// FSETCC and FSETCCS both collapse to ISD::SETCC, so the reverse is ambiguous.
+#define CMP_INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)
+#include "llvm/IR/ConstrainedOps.def"
+  }
+}
+// ZLUDA changes end
+
 // Find a larger type to do a load / store of a vector with.
 EVT AMDGPUTargetLowering::getEquivalentMemType(LLVMContext &Ctx, EVT VT) {
   unsigned StoreSize = VT.getStoreSizeInBits();
@@ -570,21 +585,28 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
       MVT::v2f32, MVT::v3f32,  MVT::v4f32, MVT::v5f32, MVT::v6f32, MVT::v7f32,
       MVT::v9f32, MVT::v10f32, MVT::v11f32, MVT::v12f32};
 
+  // ZLUDA changes start
   for (MVT VT : FloatVectorTypes) {
-    setOperationAction(
-        {ISD::FABS,          ISD::FMINNUM,        ISD::FMAXNUM,
-         ISD::FADD,          ISD::FCEIL,          ISD::FCOS,
-         ISD::FDIV,          ISD::FEXP2,          ISD::FEXP,
-         ISD::FEXP10,        ISD::FLOG2,          ISD::FREM,
-         ISD::FLOG,          ISD::FLOG10,         ISD::FPOW,
-         ISD::FFLOOR,        ISD::FTRUNC,         ISD::FMUL,
-         ISD::FMA,           ISD::FRINT,          ISD::FNEARBYINT,
-         ISD::FSQRT,         ISD::FSIN,           ISD::FSUB,
-         ISD::FNEG,          ISD::VSELECT,        ISD::SELECT_CC,
-         ISD::FCOPYSIGN,     ISD::VECTOR_SHUFFLE, ISD::SETCC,
-         ISD::FCANONICALIZE, ISD::FROUNDEVEN},
-        VT, Expand);
+    for (unsigned Opc :
+         {ISD::FABS,          ISD::FMINNUM,        ISD::FMAXNUM,
+          ISD::FADD,          ISD::FCEIL,          ISD::FCOS,
+          ISD::FDIV,          ISD::FEXP2,          ISD::FEXP,
+          ISD::FEXP10,        ISD::FLOG2,          ISD::FREM,
+          ISD::FLOG,          ISD::FLOG10,         ISD::FPOW,
+          ISD::FFLOOR,        ISD::FTRUNC,         ISD::FMUL,
+          ISD::FMA,           ISD::FRINT,          ISD::FNEARBYINT,
+          ISD::FSQRT,         ISD::FSIN,           ISD::FSUB,
+          ISD::FNEG,          ISD::VSELECT,        ISD::SELECT_CC,
+          ISD::FCOPYSIGN,     ISD::VECTOR_SHUFFLE, ISD::SETCC,
+          ISD::FCANONICALIZE, ISD::FROUNDEVEN}) {
+      setOperationAction(Opc, VT, Expand);
+      unsigned StrictOpc = getStrictFPOpcode(Opc);
+      if(StrictOpc != Opc) {
+        setOperationAction(StrictOpc, VT, Expand);
+      }
+    }
   }
+  // ZLUDA changes end
 
   // This causes using an unrolled select operation rather than expansion with
   // bit operations. This is in general better, but the alternative using BFI
@@ -661,6 +683,10 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
   setMaxAtomicSizeInBitsSupported(128);
   setMaxDivRemBitWidthSupported(64);
   setMaxLargeFPConvertBitWidthSupported(64);
+
+  // ZLUDA changes start
+  IsStrictFPEnabled = true;
+  // ZLUDA changes end
 }
 
 bool AMDGPUTargetLowering::mayIgnoreSignedZero(SDValue Op) const {

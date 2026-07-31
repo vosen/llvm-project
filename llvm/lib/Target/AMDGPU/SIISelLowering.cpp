@@ -67,6 +67,21 @@ static cl::opt<bool> UseDivergentRegisterIndexing(
     cl::desc("Use indirect register addressing for divergent indexes"),
     cl::init(false));
 
+// ZLUDA changes start
+static unsigned getStrictFPOpcode(unsigned Opc) {
+  switch (Opc) {
+  default:
+    return Opc;
+#define DAG_INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)               \
+  case ISD::DAGN:                                                              \
+    return ISD::STRICT_##DAGN;
+// FSETCC and FSETCCS both collapse to ISD::SETCC, so the reverse is ambiguous.
+#define CMP_INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)
+#include "llvm/IR/ConstrainedOps.def"
+  }
+}
+// ZLUDA changes end
+
 static bool denormalModeIsFlushAllF32(const MachineFunction &MF) {
   const SIMachineFunctionInfo *Info = MF.getInfo<SIMachineFunctionInfo>();
   return Info->getMode().FP32Denormals == DenormalMode::getPreserveSign();
@@ -223,6 +238,13 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
       // FIXME: The promoted to type shouldn't need to be explicit
       setOperationAction(Opc, MVT::bf16, Promote);
       AddPromotedToType(Opc, MVT::bf16, MVT::f32);
+      // ZLUDA changes start
+      unsigned StrictOpc = getStrictFPOpcode(Opc);
+      if(StrictOpc != Opc) {
+        setOperationAction(StrictOpc, MVT::bf16, Promote);
+        AddPromotedToType(StrictOpc, MVT::bf16, MVT::f32);
+      }
+      // ZLUDA changes end
     }
 
     // ZLUDA changes start
@@ -688,6 +710,9 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
 
     // F16 - VOP3 Actions.
     setOperationAction(ISD::FMA, MVT::f16, Legal);
+    // ZLUDA changes start
+    setOperationAction(ISD::STRICT_FMA, MVT::f16, Legal);
+    // ZLUDA changes end
     if (STI.hasMadF16())
       setOperationAction(ISD::FMAD, MVT::f16, Legal);
 
@@ -865,6 +890,10 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
     setOperationAction({ISD::FADD, ISD::FMUL, ISD::FMA, ISD::FMINNUM_IEEE,
                         ISD::FMAXNUM_IEEE, ISD::FCANONICALIZE},
                        MVT::v2f16, Legal);
+    // ZLUDA changes start
+    setOperationAction({ISD::STRICT_FADD, ISD::STRICT_FMUL, ISD::STRICT_FMA},
+                       MVT::v2f16, Legal);
+    // ZLUDA changes end
 
     setOperationAction(ISD::EXTRACT_VECTOR_ELT,
                        {MVT::v2i16, MVT::v2f16, MVT::v2bf16}, Custom);
@@ -883,10 +912,15 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
                           ISD::SSUBSAT},
                          VT, Custom);
 
-    for (MVT VT : {MVT::v4f16, MVT::v8f16, MVT::v16f16, MVT::v32f16})
+    for (MVT VT : {MVT::v4f16, MVT::v8f16, MVT::v16f16, MVT::v32f16}) {
       // Split vector operations.
       setOperationAction({ISD::FADD, ISD::FMUL, ISD::FMA, ISD::FCANONICALIZE},
                          VT, Custom);
+      // ZLUDA changes start
+      setOperationAction({ISD::STRICT_FADD, ISD::STRICT_FMUL, ISD::STRICT_FMA},
+                         VT, Custom);
+      // ZLUDA changes end
+    }
 
     setOperationAction(
         {ISD::FMAXNUM, ISD::FMINNUM, ISD::FMINIMUMNUM, ISD::FMAXIMUMNUM},
@@ -897,10 +931,15 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
                        Custom);
 
     if (Subtarget->hasBF16PackedInsts()) {
-      for (MVT VT : {MVT::v4bf16, MVT::v8bf16, MVT::v16bf16, MVT::v32bf16})
+      for (MVT VT : {MVT::v4bf16, MVT::v8bf16, MVT::v16bf16, MVT::v32bf16}) {
         // Split vector operations.
         setOperationAction({ISD::FADD, ISD::FMUL, ISD::FMA, ISD::FCANONICALIZE},
                            VT, Custom);
+        // ZLUDA changes start
+        setOperationAction(
+            {ISD::STRICT_FADD, ISD::STRICT_FMUL, ISD::STRICT_FMA}, VT, Custom);
+        // ZLUDA changes end
+      }
     }
 
     if (Subtarget->hasPackedFP32Ops()) {
@@ -909,6 +948,13 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
       setOperationAction({ISD::FADD, ISD::FMUL, ISD::FMA},
                          {MVT::v4f32, MVT::v8f32, MVT::v16f32, MVT::v32f32},
                          Custom);
+      // ZLUDA changes start
+      setOperationAction({ISD::STRICT_FADD, ISD::STRICT_FMUL, ISD::STRICT_FMA},
+                         MVT::v2f32, Legal);
+      setOperationAction({ISD::STRICT_FADD, ISD::STRICT_FMUL, ISD::STRICT_FMA},
+                         {MVT::v4f32, MVT::v8f32, MVT::v16f32, MVT::v32f32},
+                         Custom);
+      // ZLUDA changes end
     }
   }
 
@@ -1021,6 +1067,11 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
     setOperationAction(
         {ISD::FADD, ISD::FMUL, ISD::FMINNUM, ISD::FMAXNUM, ISD::FMA},
         MVT::v2bf16, Legal);
+    // ZLUDA changes start
+    setOperationAction({ISD::STRICT_FADD, ISD::STRICT_FMUL, ISD::STRICT_FMINNUM,
+                        ISD::STRICT_FMAXNUM, ISD::STRICT_FMA},
+                       MVT::v2bf16, Legal);
+    // ZLUDA changes end
   }
 
   if (Subtarget->hasBF16TransInsts()) {

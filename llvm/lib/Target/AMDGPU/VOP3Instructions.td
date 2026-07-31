@@ -1920,7 +1920,9 @@ class VOP_Pseudo_Scalar<RegisterClass Dst, RegisterOperand SrcOp,
 }
 
 def VOP_Pseudo_Scalar_F32 : VOP_Pseudo_Scalar<SReg_32_XEXEC, SSrc_f32, f32>;
-def VOP_Pseudo_Scalar_F16 : VOP_Pseudo_Scalar<SReg_32_XEXEC, SSrc_f16, f32, f16>;
+// ZLUDA changes start
+def VOP_Pseudo_Scalar_F16 : VOP_Pseudo_Scalar<SReg_32_XEXEC, SSrc_f16, f16>;
+// ZLUDA changes end
 
 let SubtargetPredicate = HasPseudoScalarTrans, TRANS = 1,
     isReMaterializable = 1, SchedRW = [WritePseudoScalarTrans] in {
@@ -1936,13 +1938,13 @@ let SubtargetPredicate = HasPseudoScalarTrans, TRANS = 1,
   defm V_S_SQRT_F16 : VOP3PseudoScalarInst<"v_s_sqrt_f16", VOP_Pseudo_Scalar_F16>;
 }
 
+// ZLUDA changes start
 class PseudoScalarPatF16<SDPatternOperator node, VOP3_Pseudo inst> : GCNPat <
   (f16 (UniformUnaryFrag<node> (f16 (VOP3Mods0 f16:$src0, i32:$src0_modifiers,
                                                i1:$clamp, i32:$omod)))),
-  (f16 (COPY_TO_REGCLASS (f32 (inst i32:$src0_modifiers, f16:$src0, i1:$clamp,
-                                    i32:$omod)),
-                         SReg_32_XEXEC))
+  (inst i32:$src0_modifiers, f16:$src0, i1:$clamp, i32:$omod)
 >;
+// ZLUDA changes end
 
 let SubtargetPredicate = HasPseudoScalarTrans in {
   def : PseudoScalarPatF16<AMDGPUexpf16, V_S_EXP_F16_e64>;
