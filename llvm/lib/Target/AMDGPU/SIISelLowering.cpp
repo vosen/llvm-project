@@ -712,6 +712,7 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::FMA, MVT::f16, Legal);
     // ZLUDA changes start
     setOperationAction(ISD::STRICT_FMA, MVT::f16, Legal);
+    setOperationAction(ISD::STRICT_FMA, {MVT::f32, MVT::f64}, Legal);
     // ZLUDA changes end
     if (STI.hasMadF16())
       setOperationAction(ISD::FMAD, MVT::f16, Legal);
@@ -6823,16 +6824,38 @@ SDValue SITargetLowering::splitTernaryVectorOp(SDValue Op,
          VT == MVT::v4bf16 || VT == MVT::v8bf16 || VT == MVT::v16bf16 ||
          VT == MVT::v32bf16);
 
-  SDValue Op0 = Op.getOperand(0);
+  // ZLUDA changes start
+  // A strict node carries the chain in operand 0, so the value operands are
+  // shifted by one.
+  bool IsStrict = Op->isStrictFPOpcode();
+  unsigned FirstOp = IsStrict ? 1 : 0;
+  // ZLUDA changes end
+
+  SDValue Op0 = Op.getOperand(FirstOp);
   auto [Lo0, Hi0] = Op0.getValueType().isVector()
-                        ? DAG.SplitVectorOperand(Op.getNode(), 0)
+                        ? DAG.SplitVectorOperand(Op.getNode(), FirstOp)
                         : std::pair(Op0, Op0);
 
-  auto [Lo1, Hi1] = DAG.SplitVectorOperand(Op.getNode(), 1);
-  auto [Lo2, Hi2] = DAG.SplitVectorOperand(Op.getNode(), 2);
+  auto [Lo1, Hi1] = DAG.SplitVectorOperand(Op.getNode(), FirstOp + 1);
+  auto [Lo2, Hi2] = DAG.SplitVectorOperand(Op.getNode(), FirstOp + 2);
 
   SDLoc SL(Op);
   auto ResVT = DAG.GetSplitDestVTs(VT);
+
+  // ZLUDA changes start
+  if (IsStrict) {
+    SDValue Chain = Op.getOperand(0);
+    SDValue OpLo = DAG.getNode(Opc, SL, DAG.getVTList(ResVT.first, MVT::Other),
+                               {Chain, Lo0, Lo1, Lo2}, Op->getFlags());
+    SDValue OpHi = DAG.getNode(Opc, SL, DAG.getVTList(ResVT.second, MVT::Other),
+                               {Chain, Hi0, Hi1, Hi2}, Op->getFlags());
+    SDValue NewChain = DAG.getNode(ISD::TokenFactor, SL, MVT::Other,
+                                   OpLo.getValue(1), OpHi.getValue(1));
+    SDValue Concat = DAG.getNode(ISD::CONCAT_VECTORS, SL, VT, OpLo.getValue(0),
+                                 OpHi.getValue(0));
+    return DAG.getMergeValues({Concat, NewChain}, SL);
+  }
+  // ZLUDA changes end
 
   SDValue OpLo =
       DAG.getNode(Opc, SL, ResVT.first, Lo0, Lo1, Lo2, Op->getFlags());
@@ -6979,6 +7002,7 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::FLDEXP:
   case ISD::STRICT_FLDEXP:
     return lowerFLDEXP(Op, DAG);
+  case ISD::STRICT_FMA:
   case ISD::FMA:
     return splitTernaryVectorOp(Op, DAG);
   case ISD::FP_TO_SINT:
