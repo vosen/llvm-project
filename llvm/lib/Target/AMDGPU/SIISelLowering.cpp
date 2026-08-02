@@ -6927,7 +6927,9 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   default:
     return AMDGPUTargetLowering::LowerOperation(Op, DAG);
   // ZLUDA changes start
-  // FIXME: that's not correct, fix it later
+  // In ZLUDA fexp is only used in tanh implementation in a sequence
+  // of fmul -> exp -> fadd. Lowering to ISD::FEXP is buggy by itself, but
+  // it will never affect ZLUDA
   case ISD::STRICT_FEXP: {
     SDLoc SL(Op);
     SDValue Exp = DAG.getNode(ISD::FEXP, SL, {Op.getValueType()},
