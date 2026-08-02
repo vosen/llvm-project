@@ -3871,6 +3871,27 @@ bool SelectionDAGLegalize::ExpandNode(SDNode *Node) {
     Results.push_back(ExpandConstant(CP));
     break;
   }
+  // ZLUDA changes start
+  case ISD::STRICT_FSUB: {
+    if (TLI.getStrictFPOperationAction(
+            ISD::STRICT_FSUB, Node->getValueType(0)) == TargetLowering::Legal)
+      return true;
+    if (TLI.getStrictFPOperationAction(
+            ISD::STRICT_FADD, Node->getValueType(0)) != TargetLowering::Legal)
+      break;
+
+    EVT VT = Node->getValueType(0);
+    const SDNodeFlags Flags = Node->getFlags();
+    SDValue Neg = DAG.getNode(ISD::FNEG, dl, VT, Node->getOperand(2), Flags);
+    SDValue Fadd =
+        DAG.getNode(ISD::STRICT_FADD, dl, Node->getVTList(),
+                    {Node->getOperand(0), Node->getOperand(1), Neg}, Flags);
+
+    Results.push_back(Fadd);
+    Results.push_back(Fadd.getValue(1));
+    break;
+  }
+  // ZLUDA changes end
   case ISD::FSUB: {
     EVT VT = Node->getValueType(0);
     if (TLI.isOperationLegalOrCustom(ISD::FADD, VT) &&

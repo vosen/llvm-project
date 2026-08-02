@@ -480,6 +480,9 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
 
   // Expand to fneg + fadd.
   setOperationAction(ISD::FSUB, MVT::f64, Expand);
+  // ZLUDA changes start
+  setOperationAction(ISD::STRICT_FSUB, MVT::f64, Expand);
+  // ZLUDA changes end
 
   setOperationAction(ISD::CONCAT_VECTORS,
                      {MVT::v3i32,  MVT::v3f32,  MVT::v4i32,  MVT::v4f32,
