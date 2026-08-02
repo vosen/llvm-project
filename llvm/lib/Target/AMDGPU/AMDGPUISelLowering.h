@@ -487,6 +487,7 @@ enum NodeType : unsigned {
   FDOT2,
   URECIP,
   DIV_SCALE,
+  STRICT_DIV_FMAS,
   DIV_FMAS,
   DIV_FIXUP,
   // For emitting ISD::FMAD when f32 denormals are enabled because mac/mad is

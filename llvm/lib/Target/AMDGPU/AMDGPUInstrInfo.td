@@ -284,6 +284,10 @@ def AMDGPUdiv_scale : SDNode<"AMDGPUISD::DIV_SCALE", AMDGPUDivScaleOp>;
 //  src1 = Denominator, src2 = Numerator).
 def AMDGPUdiv_fmas_impl : SDNode<"AMDGPUISD::DIV_FMAS", AMDGPUFmasOp,
                             [SDNPOptInGlue]>;
+let IsStrictFP = true in {
+  def AMDGPUstrict_div_fmas_impl : SDNode<"AMDGPUISD::STRICT_DIV_FMAS", AMDGPUFmasOp,
+                              [SDNPOptInGlue, SDNPHasChain]>;
+}
 
 // Single or double precision division fixup.
 // Special case divide fixup and flags(src0 = Quotient, src1 =
@@ -568,6 +572,7 @@ def AMDGPUfdot2 : PatFrags<(ops node:$src0, node:$src1, node:$src2, node:$clamp)
 
 def AMDGPUdiv_fmas : PatFrags<(ops node:$src0, node:$src1, node:$src2, node:$vcc),
   [(int_amdgcn_div_fmas node:$src0, node:$src1, node:$src2, node:$vcc),
+   (AMDGPUstrict_div_fmas_impl node:$src0, node:$src1, node:$src2, node:$vcc),
    (AMDGPUdiv_fmas_impl node:$src0, node:$src1, node:$src2, node:$vcc)]>;
 
 def AMDGPUperm : PatFrags<(ops node:$src0, node:$src1, node:$src2),

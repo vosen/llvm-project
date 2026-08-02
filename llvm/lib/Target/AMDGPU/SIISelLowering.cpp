@@ -10532,10 +10532,10 @@ SDValue SITargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
   switch (IntrID) {
   // ZLUDA changes start
   case Intrinsic::amdgcn_constrained_div_fmas: {
-    SDValue Fmas = DAG.getNode(AMDGPUISD::DIV_FMAS, DL, Op.getValueType(),
-                               Op.getOperand(2), Op.getOperand(3),
-                               Op.getOperand(4), Op.getOperand(5));
-    return DAG.getMergeValues({Fmas, Op.getOperand(0)}, DL);
+    return DAG.getNode(AMDGPUISD::STRICT_DIV_FMAS, DL,
+                       {Op.getValueType(), MVT::Other},
+                       {Op.getOperand(0), Op.getOperand(2), Op.getOperand(3),
+                        Op.getOperand(4), Op.getOperand(5)});
   }
   case Intrinsic::amdgcn_constrained_rcp:
     return DAG.getNode(AMDGPUISD::STRICT_RCP, DL,
