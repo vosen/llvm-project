@@ -4925,10 +4925,12 @@ SDValue SITargetLowering::lowerFP_EXTEND(SDValue Op, SelectionDAG &DAG) const {
       DAG.getNode(ISD::BITCAST, SL, SrcVT.changeTypeToInteger(), Src);
 
   EVT DstVT = Op.getValueType();
+  // ZLUDA changes start
   if (IsStrict) {
     return DAG.getNode(ISD::STRICT_BF16_TO_FP, SL, {DstVT, MVT::Other},
                        {Op.getOperand(0), BitCast});
   }
+  // ZLUDA changes end
   return DAG.getNode(ISD::BF16_TO_FP, SL, DstVT, BitCast);
 }
 
@@ -7033,7 +7035,9 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::FLDEXP:
   case ISD::STRICT_FLDEXP:
     return lowerFLDEXP(Op, DAG);
+  // ZLUDA changes start
   case ISD::STRICT_FMA:
+  // ZLUDA changes end
   case ISD::FMA:
     return splitTernaryVectorOp(Op, DAG);
   case ISD::FP_TO_SINT:
@@ -7048,9 +7052,11 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::SMAX:
   case ISD::UMIN:
   case ISD::UMAX:
+  // ZLUDA changes start
   case ISD::STRICT_FADD:
-  case ISD::FADD:
   case ISD::STRICT_FMUL:
+  // ZLUDA changes end
+  case ISD::FADD:
   case ISD::FMUL:
   case ISD::FMINNUM_IEEE:
   case ISD::FMAXNUM_IEEE:

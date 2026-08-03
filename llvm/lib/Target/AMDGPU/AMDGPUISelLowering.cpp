@@ -3769,10 +3769,8 @@ SDValue AMDGPUTargetLowering::LowerFP_TO_FP16(SDValue Op, SelectionDAG &DAG) con
   }
 
   // ZLUDA changes start
-  // LowerF64ToF16Safe is plain integer arithmetic that does not read MODE, so
-  // there is nothing to order against a rounding mode change and the incoming
-  // chain is simply forwarded. Note that it hardcodes round-to-nearest-even,
-  // so a strict f64 -> f16 conversion ignores a non-default rounding mode.
+  // FIXME: LowerF64ToF16Safe is plain integer arithmetic that does not honor
+  // rounding mode
   SDValue Result = LowerF64ToF16Safe(N0, DL, DAG);
   return IsStrict ? DAG.getMergeValues({Result, Chain}, DL) : Result;
   // ZLUDA changes end
@@ -5889,7 +5887,6 @@ const char* AMDGPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(FDOT2)
   NODE_NAME_CASE(URECIP)
   NODE_NAME_CASE(DIV_SCALE)
-  NODE_NAME_CASE(STRICT_DIV_FMAS)
   NODE_NAME_CASE(DIV_FMAS)
   NODE_NAME_CASE(DIV_FIXUP)
   NODE_NAME_CASE(FMAD_FTZ)
@@ -5898,6 +5895,7 @@ const char* AMDGPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(RCP_LEGACY)
   NODE_NAME_CASE(RCP_IFLAG)
   // ZLUDA changes start
+  NODE_NAME_CASE(STRICT_DIV_FMAS)
   NODE_NAME_CASE(STRICT_RCP)
   NODE_NAME_CASE(STRICT_RSQ)
   NODE_NAME_CASE(STRICT_SQRT)
