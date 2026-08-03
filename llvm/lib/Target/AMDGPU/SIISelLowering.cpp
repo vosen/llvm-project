@@ -214,6 +214,7 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
   setOperationAction({ISD::STRICT_FADD, ISD::STRICT_FMUL, ISD::STRICT_FMA},
                      {MVT::bf16, MVT::f16, MVT::f32, MVT::f64}, Legal);
   setOperationAction(ISD::STRICT_FSUB, {MVT::bf16, MVT::f16, MVT::f32}, Legal);
+  setOperationAction(ISD::STRICT_FP_ROUND, MVT::f32, Legal);
   // ZLUDA changes end
 
   // We need to custom lower vector stores from local memory

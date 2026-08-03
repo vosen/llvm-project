@@ -269,7 +269,7 @@ let mayRaiseFPException = 0 in {
 defm V_CVT_F64_I32 : VOP1Inst <"v_cvt_f64_i32", VOP1_F64_I32, any_sint_to_fp>;
 }
 
-defm V_CVT_F32_F64 : VOP1Inst <"v_cvt_f32_f64", VOP_F32_F64,  fpround>;
+defm V_CVT_F32_F64 : VOP1Inst <"v_cvt_f32_f64", VOP_F32_F64,  any_fpround>;
 defm V_CVT_F64_F32 : VOP1Inst <"v_cvt_f64_f32", VOP_F64_F32,  any_fpextend>;
 // OMod clears exceptions when set in this instruction
 defm V_CVT_U32_F64 : VOP1Inst <"v_cvt_u32_f64", VOP_I32_F64_SPECIAL_OMOD,  fp_to_uint>;
