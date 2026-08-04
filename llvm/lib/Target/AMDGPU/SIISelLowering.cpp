@@ -215,6 +215,12 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
                      {MVT::bf16, MVT::f16, MVT::f32, MVT::f64}, Legal);
   setOperationAction(ISD::STRICT_FSUB, {MVT::bf16, MVT::f16, MVT::f32}, Legal);
   setOperationAction(ISD::STRICT_FP_ROUND, MVT::f32, Legal);
+  // Strict operations that don't read register, just fp exceptions
+  setOperationAction({ISD::STRICT_FCEIL, ISD::STRICT_FFLOOR, ISD::STRICT_FTRUNC,
+                      ISD::STRICT_FROUNDEVEN, ISD::STRICT_FMAXNUM,
+                      ISD::STRICT_FMINNUM, ISD::STRICT_FMAXIMUM,
+                      ISD::STRICT_FMINIMUM},
+                     {MVT::bf16, MVT::f16, MVT::f32, MVT::f64}, Custom);
   // ZLUDA changes end
 
   // We need to custom lower vector stores from local memory
@@ -1076,9 +1082,10 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
         {ISD::FADD, ISD::FMUL, ISD::FMINNUM, ISD::FMAXNUM, ISD::FMA},
         MVT::v2bf16, Legal);
     // ZLUDA changes start
-    setOperationAction({ISD::STRICT_FADD, ISD::STRICT_FMUL, ISD::STRICT_FMINNUM,
-                        ISD::STRICT_FMAXNUM, ISD::STRICT_FMA},
+    setOperationAction({ISD::STRICT_FADD, ISD::STRICT_FMUL, ISD::STRICT_FMA},
                        MVT::v2bf16, Legal);
+    setOperationAction({ISD::STRICT_FMINNUM, ISD::STRICT_FMAXNUM}, MVT::v2bf16,
+                       Custom);
     // ZLUDA changes end
   }
 
@@ -6914,13 +6921,37 @@ static SDValue lowerStrictAsNonStrict(SDValue Op, SelectionDAG &DAG) {
   case ISD::STRICT_FP_TO_UINT:
     Opc = ISD::FP_TO_UINT;
     break;
+  case ISD::STRICT_FCEIL:
+    Opc = ISD::FCEIL;
+    break;
+  case ISD::STRICT_FFLOOR:
+    Opc = ISD::FFLOOR;
+    break;
+  case ISD::STRICT_FTRUNC:
+    Opc = ISD::FTRUNC;
+    break;
+  case ISD::STRICT_FROUNDEVEN:
+    Opc = ISD::FROUNDEVEN;
+    break;
+  case ISD::STRICT_FMAXNUM:
+    Opc = ISD::FMAXNUM;
+    break;
+  case ISD::STRICT_FMINNUM:
+    Opc = ISD::FMINNUM;
+    break;
+  case ISD::STRICT_FMAXIMUM:
+    Opc = ISD::FMAXIMUM;
+    break;
+  case ISD::STRICT_FMINIMUM:
+    Opc = ISD::FMINIMUM;
+    break;
   default:
     llvm_unreachable("not a strict conversion");
   }
 
   SDLoc SL(Op);
-  SDValue Cvt = DAG.getNode(Opc, SL, Op.getValueType(), Op.getOperand(1),
-                            Op->getFlags());
+  SmallVector<SDValue, 2> Ops(llvm::drop_begin(Op->ops()));
+  SDValue Cvt = DAG.getNode(Opc, SL, Op.getValueType(), Ops, Op->getFlags());
   return DAG.getMergeValues({Cvt, Op.getOperand(0)}, SL);
 }
 // ZLUDA changes end
@@ -7090,6 +7121,14 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::STRICT_BF16_TO_FP:
   case ISD::STRICT_FP_TO_SINT:
   case ISD::STRICT_FP_TO_UINT:
+  case ISD::STRICT_FCEIL:
+  case ISD::STRICT_FFLOOR:
+  case ISD::STRICT_FTRUNC:
+  case ISD::STRICT_FROUNDEVEN:
+  case ISD::STRICT_FMAXNUM:
+  case ISD::STRICT_FMINNUM:
+  case ISD::STRICT_FMAXIMUM:
+  case ISD::STRICT_FMINIMUM:
     return lowerStrictAsNonStrict(Op, DAG);
   // ZLUDA changes end
   case ISD::FP_EXTEND:
