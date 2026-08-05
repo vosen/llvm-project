@@ -499,6 +499,14 @@ enum NodeType : unsigned {
   RSQ,
   RCP_LEGACY,
   RCP_IFLAG,
+  // ZLUDA changes start
+  STRICT_DIV_FMAS,
+  STRICT_RCP,
+  STRICT_RSQ,
+  STRICT_SQRT,
+  STRICT_LOG,
+  STRICT_EXP,
+  // ZLUDA changes end
 
   // log2, no denormal handling for f32.
   LOG,
@@ -551,6 +559,9 @@ enum NodeType : unsigned {
   // Same as the standard node, except the high bits of the resulting integer
   // are known 0.
   FP_TO_FP16,
+  // ZLUDA changes start
+  STRICT_FP_TO_FP16,
+  // ZLUDA changes end
 
   /// This node is for VLIW targets and it is used to represent a vector
   /// that is stored in consecutive registers with the same channel.

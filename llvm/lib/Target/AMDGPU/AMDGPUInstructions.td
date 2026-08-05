@@ -894,5 +894,10 @@ def any_fmad : PatFrags<(ops node:$src0, node:$src1, node:$src2),
 
 // FIXME: fsqrt should not select directly
 def any_amdgcn_sqrt : PatFrags<(ops node:$src0),
-  [(fsqrt node:$src0), (int_amdgcn_sqrt node:$src0)]
+  [(fsqrt node:$src0),
+   (int_amdgcn_sqrt node:$src0),
+   // ZLUDA changes start
+   (AMDGPUsqrt_strict_impl node:$src0)
+   // ZLUDA changes end
+  ]
 >;

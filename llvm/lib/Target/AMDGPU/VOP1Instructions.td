@@ -266,16 +266,16 @@ let SchedRW = [WriteDoubleCvt] in {
 defm V_CVT_I32_F64 : VOP1Inst <"v_cvt_i32_f64", VOP_I32_F64_SPECIAL_OMOD,  fp_to_sint>;
 
 let mayRaiseFPException = 0 in {
-defm V_CVT_F64_I32 : VOP1Inst <"v_cvt_f64_i32", VOP1_F64_I32, sint_to_fp>;
+defm V_CVT_F64_I32 : VOP1Inst <"v_cvt_f64_i32", VOP1_F64_I32, any_sint_to_fp>;
 }
 
-defm V_CVT_F32_F64 : VOP1Inst <"v_cvt_f32_f64", VOP_F32_F64,  fpround>;
+defm V_CVT_F32_F64 : VOP1Inst <"v_cvt_f32_f64", VOP_F32_F64,  any_fpround>;
 defm V_CVT_F64_F32 : VOP1Inst <"v_cvt_f64_f32", VOP_F64_F32,  any_fpextend>;
 // OMod clears exceptions when set in this instruction
 defm V_CVT_U32_F64 : VOP1Inst <"v_cvt_u32_f64", VOP_I32_F64_SPECIAL_OMOD,  fp_to_uint>;
 
 let mayRaiseFPException = 0 in {
-defm V_CVT_F64_U32 : VOP1Inst <"v_cvt_f64_u32", VOP1_F64_I32, uint_to_fp>;
+defm V_CVT_F64_U32 : VOP1Inst <"v_cvt_f64_u32", VOP1_F64_I32, any_uint_to_fp>;
 }
 
 } // End SchedRW = [WriteDoubleCvt]
@@ -285,8 +285,8 @@ let SchedRW = [WriteFloatCvt] in {
 // XXX: Does this really not raise exceptions? The manual claims the
 // 16-bit ones can.
 let mayRaiseFPException = 0 in {
-defm V_CVT_F32_I32 : VOP1Inst <"v_cvt_f32_i32", VOP1_F32_I32, sint_to_fp>;
-defm V_CVT_F32_U32 : VOP1Inst <"v_cvt_f32_u32", VOP1_F32_I32, uint_to_fp>;
+defm V_CVT_F32_I32 : VOP1Inst <"v_cvt_f32_i32", VOP1_F32_I32, any_sint_to_fp>;
+defm V_CVT_F32_U32 : VOP1Inst <"v_cvt_f32_u32", VOP1_F32_I32, any_uint_to_fp>;
 }
 
 // OMod clears exceptions when set in these 2 instructions
@@ -346,13 +346,13 @@ defm V_LOG_F32 : VOP1Inst <"v_log_f32", VOP_F32_F32, AMDGPUlog>;
 defm V_RCP_F32 : VOP1Inst <"v_rcp_f32", VOP_F32_F32, AMDGPUrcp>;
 defm V_RCP_IFLAG_F32 : VOP1Inst <"v_rcp_iflag_f32", VOP_F32_F32, AMDGPUrcp_iflag>;
 defm V_RSQ_F32 : VOP1Inst <"v_rsq_f32", VOP_F32_F32, AMDGPUrsq>;
-defm V_SQRT_F32 : VOP1Inst <"v_sqrt_f32", VOP_F32_F32, int_amdgcn_sqrt>;
+defm V_SQRT_F32 : VOP1Inst <"v_sqrt_f32", VOP_F32_F32, any_amdgcn_sqrt>;
 } // End TRANS = 1, SchedRW = [WriteTrans32]
 
 let TRANS = 1, SchedRW = [WriteTrans64] in {
 defm V_RCP_F64 : VOP1Inst <"v_rcp_f64", VOP_F64_F64_NO_DPP, AMDGPUrcp>;
 defm V_RSQ_F64 : VOP1Inst <"v_rsq_f64", VOP_F64_F64_NO_DPP, AMDGPUrsq>;
-defm V_SQRT_F64 : VOP1Inst <"v_sqrt_f64", VOP_F64_F64_NO_DPP, int_amdgcn_sqrt>;
+defm V_SQRT_F64 : VOP1Inst <"v_sqrt_f64", VOP_F64_F64_NO_DPP, any_amdgcn_sqrt>;
 } // End TRANS = 1, SchedRW = [WriteTrans64]
 
 let TRANS = 1, SchedRW = [WriteTrans32] in {
@@ -503,8 +503,8 @@ let SubtargetPredicate = isGFX7Plus in {
 } // End isReMaterializable = 1
 
 let FPDPRounding = 1 in {
-defm V_CVT_F16_U16 : VOP1Inst_t16_with_profiles <"v_cvt_f16_u16", VOP1_F16_I16, VOP1_F16_I16_t16, VOP1_F16_I16_fake16, uint_to_fp>;
-defm V_CVT_F16_I16 : VOP1Inst_t16_with_profiles <"v_cvt_f16_i16", VOP1_F16_I16, VOP1_F16_I16_t16, VOP1_F16_I16_fake16, sint_to_fp>;
+defm V_CVT_F16_U16 : VOP1Inst_t16_with_profiles <"v_cvt_f16_u16", VOP1_F16_I16, VOP1_F16_I16_t16, VOP1_F16_I16_fake16, any_uint_to_fp>;
+defm V_CVT_F16_I16 : VOP1Inst_t16_with_profiles <"v_cvt_f16_i16", VOP1_F16_I16, VOP1_F16_I16_t16, VOP1_F16_I16_fake16, any_sint_to_fp>;
 
 } // End FPDPRounding = 1
 // OMod clears exceptions when set in these two instructions
@@ -554,7 +554,7 @@ def : GCNPat<
     (V_CVT_F32_F16_e32 $src)
 >;
 def : GCNPat<
-    (i16 (AMDGPUfp_to_f16 f32:$src)),
+    (i16 (AMDGPUany_fp_to_f16 f32:$src)),
     (V_CVT_F16_F32_e32 $src)
 >;
 }
@@ -564,7 +564,7 @@ def : GCNPat<
     (V_CVT_F32_F16_t16_e32 $src)
 >;
 def : GCNPat<
-    (i16 (AMDGPUfp_to_f16 f32:$src)),
+    (i16 (AMDGPUany_fp_to_f16 f32:$src)),
     (V_CVT_F16_F32_t16_e32 $src)
 >;
 }
@@ -574,7 +574,7 @@ def : GCNPat<
     (V_CVT_F32_F16_fake16_e32 $src)
 >;
 def : GCNPat<
-    (i16 (AMDGPUfp_to_f16 f32:$src)),
+    (i16 (AMDGPUany_fp_to_f16 f32:$src)),
     (V_CVT_F16_F32_fake16_e32 $src)
 >;
 }

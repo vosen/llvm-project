@@ -1427,13 +1427,13 @@ let SubtargetPredicate = HasCvtPkF16F32Inst in {
     defm V_CVT_PK_F16_F32 : VOP3Inst<"v_cvt_pk_f16_f32", VOP3_Profile<VOP_V2F16_F32_F32>>;
   }
 
-  def : GCNPat<(v2f16 (fpround v2f32:$src)),
+  def : GCNPat<(v2f16 (any_fpround v2f32:$src)),
                (V_CVT_PK_F16_F32_e64 0, (EXTRACT_SUBREG VReg_64:$src, sub0), 0, (EXTRACT_SUBREG VReg_64:$src, sub1))>;
-  def : GCNPat<(v2f16 (fpround v2f64:$src)),
+  def : GCNPat<(v2f16 (any_fpround v2f64:$src)),
                (V_CVT_PK_F16_F32_e64 0, (V_CVT_F32_F64_e64 0, (EXTRACT_SUBREG VReg_128:$src, sub0_sub1)),
                                      0, (V_CVT_F32_F64_e64 0, (EXTRACT_SUBREG VReg_128:$src, sub2_sub3)))>;
-  def : GCNPat<(v2f16 (build_vector (f16 (fpround (f32 (VOP3Mods f32:$src0, i32:$src0_modifiers)))),
-                                    (f16 (fpround (f32 (VOP3Mods f32:$src1, i32:$src1_modifiers)))))),
+  def : GCNPat<(v2f16 (build_vector (f16 (any_fpround (f32 (VOP3Mods f32:$src0, i32:$src0_modifiers)))),
+                                    (f16 (any_fpround (f32 (VOP3Mods f32:$src1, i32:$src1_modifiers)))))),
                (V_CVT_PK_F16_F32_e64 $src0_modifiers, $src0, $src1_modifiers, $src1)>;
 }
 
@@ -1722,7 +1722,9 @@ class VOP3_CVT_SR_FP16_TiedInput_Profile<VOPProfile P> : VOP3_CVT_SCALE_F1632_FP
 
 // FIXME: GlobalISel cannot distinguish f16 and bf16 and may start using bf16 patterns
 //        instead of less complex f16. Disable GlobalISel for these for now.
-def bf16_fpround : PatFrag <(ops node:$src0),  (fpround $src0), [{ return true; }]> {
+def bf16_fpround : PatFrags <(ops node:$src0),
+                             [(fpround node:$src0), (strict_fpround node:$src0)],
+                             [{ return true; }]> {
   let GISelPredicateCode = [{return false;}];
 }
 
@@ -1918,7 +1920,9 @@ class VOP_Pseudo_Scalar<RegisterClass Dst, RegisterOperand SrcOp,
 }
 
 def VOP_Pseudo_Scalar_F32 : VOP_Pseudo_Scalar<SReg_32_XEXEC, SSrc_f32, f32>;
-def VOP_Pseudo_Scalar_F16 : VOP_Pseudo_Scalar<SReg_32_XEXEC, SSrc_f16, f32, f16>;
+// ZLUDA changes start
+def VOP_Pseudo_Scalar_F16 : VOP_Pseudo_Scalar<SReg_32_XEXEC, SSrc_f16, f16>;
+// ZLUDA changes end
 
 let SubtargetPredicate = HasPseudoScalarTrans, TRANS = 1,
     isReMaterializable = 1, SchedRW = [WritePseudoScalarTrans] in {
@@ -1934,13 +1938,13 @@ let SubtargetPredicate = HasPseudoScalarTrans, TRANS = 1,
   defm V_S_SQRT_F16 : VOP3PseudoScalarInst<"v_s_sqrt_f16", VOP_Pseudo_Scalar_F16>;
 }
 
+// ZLUDA changes start
 class PseudoScalarPatF16<SDPatternOperator node, VOP3_Pseudo inst> : GCNPat <
   (f16 (UniformUnaryFrag<node> (f16 (VOP3Mods0 f16:$src0, i32:$src0_modifiers,
                                                i1:$clamp, i32:$omod)))),
-  (f16 (COPY_TO_REGCLASS (f32 (inst i32:$src0_modifiers, f16:$src0, i1:$clamp,
-                                    i32:$omod)),
-                         SReg_32_XEXEC))
+  (inst i32:$src0_modifiers, f16:$src0, i1:$clamp, i32:$omod)
 >;
+// ZLUDA changes end
 
 let SubtargetPredicate = HasPseudoScalarTrans in {
   def : PseudoScalarPatF16<AMDGPUexpf16, V_S_EXP_F16_e64>;

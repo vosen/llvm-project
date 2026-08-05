@@ -129,6 +129,25 @@ def AMDGPUfract_impl : SDNode<"AMDGPUISD::FRACT", SDTFPUnaryOp>;
 
 // out = 1.0 / a
 def AMDGPUrcp_impl : SDNode<"AMDGPUISD::RCP", SDTFPUnaryOp>;
+// ZLUDA changes start
+let IsStrictFP = true in {
+  def AMDGPUrcp_strict_impl : SDNode<"AMDGPUISD::STRICT_RCP",
+                                     SDTFPUnaryOp,
+                                     [SDNPHasChain]>;
+  def AMDGPUrsq_strict_impl : SDNode<"AMDGPUISD::STRICT_RSQ",
+                                     SDTFPUnaryOp,
+                                     [SDNPHasChain]>;
+  def AMDGPUsqrt_strict_impl : SDNode<"AMDGPUISD::STRICT_SQRT",
+                                      SDTFPUnaryOp,
+                                      [SDNPHasChain]>;
+  def AMDGPUlog_strict_impl : SDNode<"AMDGPUISD::STRICT_LOG",
+                                     SDTFPUnaryOp,
+                                     [SDNPHasChain]>;
+  def AMDGPUexp_strict_impl : SDNode<"AMDGPUISD::STRICT_EXP",
+                                     SDTFPUnaryOp,
+                                     [SDNPHasChain]>;
+}
+// ZLUDA changes end
 
 // v_log_f32, which is log2
 def AMDGPUlog_impl : SDNode<"AMDGPUISD::LOG", SDTFPUnaryOp>;
@@ -152,6 +171,13 @@ def AMDGPUpknorm_u16_f32_impl : SDNode<"AMDGPUISD::CVT_PKNORM_U16_F32", AMDGPUFP
 def AMDGPUpk_i16_i32_impl : SDNode<"AMDGPUISD::CVT_PK_I16_I32", AMDGPUIntPackOp>;
 def AMDGPUpk_u16_u32_impl : SDNode<"AMDGPUISD::CVT_PK_U16_U32", AMDGPUIntPackOp>;
 def AMDGPUfp_to_f16 : SDNode<"AMDGPUISD::FP_TO_FP16" , SDTFPToIntOp>;
+// ZLUDA changes start
+let IsStrictFP = true in {
+  def AMDGPUfp_to_f16_strict : SDNode<"AMDGPUISD::STRICT_FP_TO_FP16",
+                                      SDTFPToIntOp,
+                                      [SDNPHasChain]>;
+}
+// ZLUDA changes end
 
 
 def AMDGPUfp_class_impl : SDNode<"AMDGPUISD::FP_CLASS", AMDGPUFPClassOp>;
@@ -258,6 +284,13 @@ def AMDGPUdiv_scale : SDNode<"AMDGPUISD::DIV_SCALE", AMDGPUDivScaleOp>;
 //  src1 = Denominator, src2 = Numerator).
 def AMDGPUdiv_fmas_impl : SDNode<"AMDGPUISD::DIV_FMAS", AMDGPUFmasOp,
                             [SDNPOptInGlue]>;
+
+// ZLUDA changes start
+let IsStrictFP = true in {
+  def AMDGPUstrict_div_fmas_impl : SDNode<"AMDGPUISD::STRICT_DIV_FMAS", AMDGPUFmasOp,
+                              [SDNPOptInGlue, SDNPHasChain]>;
+}
+// ZLUDA changes end
 
 // Single or double precision division fixup.
 // Special case divide fixup and flags(src0 = Quotient, src1 =
@@ -414,11 +447,22 @@ def AMDGPUret_glue : SDNode<"AMDGPUISD::RET_GLUE", SDTNone,
 //===----------------------------------------------------------------------===//
 
 def AMDGPUrcp : PatFrags<(ops node:$src), [(int_amdgcn_rcp node:$src),
+// ZLUDA changes start
+                                           (AMDGPUrcp_strict_impl node:$src),
+// ZLUDA changes end
                                            (AMDGPUrcp_impl node:$src)]>;
+// ZLUDA changes start
+def AMDGPUany_fp_to_f16 : PatFrags<(ops node:$src),
+                                   [(AMDGPUfp_to_f16_strict node:$src),
+                                    (AMDGPUfp_to_f16 node:$src)]>;
+// ZLUDA changes end
 def AMDGPUrcp_legacy : PatFrags<(ops node:$src), [(int_amdgcn_rcp_legacy node:$src),
                                                   (AMDGPUrcp_legacy_impl node:$src)]>;
 
 def AMDGPUrsq : PatFrags<(ops node:$src), [(int_amdgcn_rsq node:$src),
+                                           // ZLUDA changes start
+                                           (AMDGPUrsq_strict_impl node:$src),
+                                           // ZLUDA changes end
                                            (AMDGPUrsq_impl node:$src)]>;
 
 def AMDGPUrsq_clamp : PatFrags<(ops node:$src), [(int_amdgcn_rsq_clamp node:$src),
@@ -431,13 +475,22 @@ def AMDGPUcos : PatFrags<(ops node:$src), [(int_amdgcn_cos node:$src),
 def AMDGPUfract : PatFrags<(ops node:$src), [(int_amdgcn_fract node:$src),
                                              (AMDGPUfract_impl node:$src)]>;
 def AMDGPUlog : PatFrags<(ops node:$src), [(int_amdgcn_log node:$src),
+                                           // ZLUDA changes start
+                                           (AMDGPUlog_strict_impl node:$src),
+                                           // ZLUDA changes end
                                            (AMDGPUlog_impl node:$src)]>;
 def AMDGPUlogf16 : PatFrags<(ops node:$src), [(int_amdgcn_log node:$src),
                                               (flog2 node:$src)]>;
 
 def AMDGPUexp : PatFrags<(ops node:$src), [(int_amdgcn_exp2 node:$src),
+                                           // ZLUDA changes start
+                                           (AMDGPUexp_strict_impl node:$src),
+                                           // ZLUDA changes end
                                            (AMDGPUexp_impl node:$src)]>;
 def AMDGPUexpf16 : PatFrags<(ops node:$src), [(int_amdgcn_exp2 node:$src),
+                                              // ZLUDA changes start
+                                              (AMDGPUexp_strict_impl node:$src),
+                                              // ZLUDA changes end
                                               (fexp2 node:$src)]>;
 
 def AMDGPUfp_class : PatFrags<(ops node:$src0, node:$src1),
@@ -522,6 +575,9 @@ def AMDGPUfdot2 : PatFrags<(ops node:$src0, node:$src1, node:$src2, node:$clamp)
 
 def AMDGPUdiv_fmas : PatFrags<(ops node:$src0, node:$src1, node:$src2, node:$vcc),
   [(int_amdgcn_div_fmas node:$src0, node:$src1, node:$src2, node:$vcc),
+    // ZLUDA changes start
+   (AMDGPUstrict_div_fmas_impl node:$src0, node:$src1, node:$src2, node:$vcc),
+    // ZLUDA changes end
    (AMDGPUdiv_fmas_impl node:$src0, node:$src1, node:$src2, node:$vcc)]>;
 
 def AMDGPUperm : PatFrags<(ops node:$src0, node:$src1, node:$src2),

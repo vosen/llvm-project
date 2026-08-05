@@ -206,6 +206,14 @@ bool AMDGPUDAGToDAGISel::fp16SrcZerosHighBits(unsigned Opc) const {
   case AMDGPUISD::FMED3:
   case AMDGPUISD::FMAD_FTZ:
   case AMDGPUISD::RCP:
+// ZLUDA changes start
+  case AMDGPUISD::STRICT_RCP:
+  case AMDGPUISD::STRICT_RSQ:
+  case AMDGPUISD::STRICT_SQRT:
+  case AMDGPUISD::STRICT_LOG:
+  case AMDGPUISD::STRICT_EXP:
+  case ISD::STRICT_FEXP:
+// ZLUDA changes end
   case AMDGPUISD::RSQ:
   case AMDGPUISD::RCP_IFLAG:
     // On gfx10, all 16-bit instructions preserve the high bits.

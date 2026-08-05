@@ -1983,8 +1983,15 @@ SDValue SelectionDAGBuilder::getValueImpl(const Value *V) {
     return RFV.getCopyFromRegs(DAG, FuncInfo, getCurSDLoc(), Chain, nullptr, V);
   }
 
-  if (const MetadataAsValue *MD = dyn_cast<MetadataAsValue>(V))
-    return DAG.getMDNode(cast<MDNode>(MD->getMetadata()));
+  // ZLUDA changes start
+  if (const MetadataAsValue *MD = dyn_cast<MetadataAsValue>(V)) {
+    Metadata *M = MD->getMetadata();
+    const MDNode *N = dyn_cast<MDNode>(M);
+    if (!N)
+      N = MDTuple::get(*DAG.getContext(), M);
+    return DAG.getMDNode(N);
+  }
+  // ZLUDA changes end
 
   if (const auto *BB = dyn_cast<BasicBlock>(V))
     return DAG.getBasicBlock(FuncInfo.getMBB(BB));

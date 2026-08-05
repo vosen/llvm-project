@@ -1360,7 +1360,7 @@ multiclass f16_to_fp_Pats<Instruction cvt_f16_f32_inst_e64, Instruction cvt_f32_
 
   // fp_to_fp16 patterns
   def : GCNPat <
-    (i32 (AMDGPUfp_to_f16 (f32 (VOP3Mods f32:$src0, i32:$src0_modifiers)))),
+    (i32 (AMDGPUany_fp_to_f16 (f32 (VOP3Mods f32:$src0, i32:$src0_modifiers)))),
     (cvt_f16_f32_inst_e64 $src0_modifiers, f32:$src0)
   >;
 
@@ -1397,12 +1397,12 @@ multiclass f16_fp_Pats<Instruction cvt_f16_f32_inst_e64,
   >;
 
   def : GCNPat <
-    (f16 (sint_to_fp i32:$src)),
+    (f16 (any_sint_to_fp i32:$src)),
     (cvt_f16_f32_inst_e64 SRCMODS.NONE, (V_CVT_F32_I32_e32 VSrc_b32:$src))
   >;
 
   def : GCNPat <
-    (f16 (uint_to_fp i32:$src)),
+    (f16 (any_uint_to_fp i32:$src)),
     (cvt_f16_f32_inst_e64 SRCMODS.NONE, (V_CVT_F32_U32_e32 VSrc_b32:$src))
   >;
 }
@@ -3113,7 +3113,7 @@ def : GCNPat <
 
 let SubtargetPredicate = NotHasTrue16BitInsts in
 def : GCNPat <
-  (f16 (sint_to_fp i1:$src)),
+  (f16 (any_sint_to_fp i1:$src)),
   (V_CVT_F16_F32_e32 (
       V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.FP32_NEG_ONE),
@@ -3122,7 +3122,7 @@ def : GCNPat <
 
 let True16Predicate = UseRealTrue16Insts in
 def : GCNPat <
-  (f16 (sint_to_fp i1:$src)),
+  (f16 (any_sint_to_fp i1:$src)),
   (V_CVT_F16_F32_t16_e64 /*src0_modifiers*/ 0,
       (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.FP32_NEG_ONE),
@@ -3132,7 +3132,7 @@ def : GCNPat <
 
 let True16Predicate = UseFakeTrue16Insts in
 def : GCNPat <
-  (f16 (sint_to_fp i1:$src)),
+  (f16 (any_sint_to_fp i1:$src)),
   (V_CVT_F16_F32_fake16_e64 /*src0_modifiers*/ 0,
       (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.FP32_NEG_ONE),
@@ -3142,7 +3142,7 @@ def : GCNPat <
 
 let True16Predicate = NotHasTrue16BitInsts in
 def : GCNPat <
-  (f16 (uint_to_fp i1:$src)),
+  (f16 (any_uint_to_fp i1:$src)),
   (V_CVT_F16_F32_e32 (
       V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.FP32_ONE),
@@ -3151,7 +3151,7 @@ def : GCNPat <
 
 let True16Predicate = UseRealTrue16Insts in
 def : GCNPat <
-  (f16 (uint_to_fp i1:$src)),
+  (f16 (any_uint_to_fp i1:$src)),
   (V_CVT_F16_F32_t16_e64 /*src0_modifiers*/ 0,
       (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.FP32_ONE),
@@ -3161,7 +3161,7 @@ def : GCNPat <
 
 let True16Predicate = UseFakeTrue16Insts in
 def : GCNPat <
-  (f16 (uint_to_fp i1:$src)),
+  (f16 (any_uint_to_fp i1:$src)),
   (V_CVT_F16_F32_fake16_e64 /*src0_modifiers*/ 0,
       (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.FP32_ONE),
@@ -3171,7 +3171,7 @@ def : GCNPat <
 
 let SubtargetPredicate = isGFX8GFX9GFX10 in
 def : GCNPat <
-  (bf16 (uint_to_fp i1:$src)),
+  (bf16 (any_uint_to_fp i1:$src)),
   (bf16 (EXTRACT_SUBREG 
       (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.BF16_ONE),
@@ -3182,7 +3182,7 @@ def : GCNPat <
 let SubtargetPredicate = isGFX11Plus in {
   let True16Predicate = UseRealTrue16Insts in
   def : GCNPat <
-    (bf16 (uint_to_fp i1:$src)),
+    (bf16 (any_uint_to_fp i1:$src)),
     (bf16 (V_CNDMASK_B16_t16_e64 /*src0mod*/(i32 0), /*src0*/(i16 0),
                             /*src1mod*/(i32 0), /*src1*/(i16 CONST.BF16_ONE),
                             SSrc_i1:$src))
@@ -3190,7 +3190,7 @@ let SubtargetPredicate = isGFX11Plus in {
 
   let True16Predicate = UseFakeTrue16Insts in
   def : GCNPat <
-    (bf16 (uint_to_fp i1:$src)),
+    (bf16 (any_uint_to_fp i1:$src)),
     (bf16 (V_CNDMASK_B16_fake16_e64 /*src0mod*/(i32 0), /*src0*/(i16 0),
                             /*src1mod*/(i32 0), /*src1*/(i16 CONST.BF16_ONE),
                             SSrc_i1:$src))
@@ -3198,28 +3198,28 @@ let SubtargetPredicate = isGFX11Plus in {
 }
 
 def : GCNPat <
-  (f32 (sint_to_fp i1:$src)),
+  (f32 (any_sint_to_fp i1:$src)),
   (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.FP32_NEG_ONE),
                         SSrc_i1:$src)
 >;
 
 def : GCNPat <
-  (f32 (uint_to_fp i1:$src)),
+  (f32 (any_uint_to_fp i1:$src)),
   (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                         /*src1mod*/(i32 0), /*src1*/(i32 CONST.FP32_ONE),
                         SSrc_i1:$src)
 >;
 
 def : GCNPat <
-  (f64 (sint_to_fp i1:$src)),
+  (f64 (any_sint_to_fp i1:$src)),
   (V_CVT_F64_I32_e32 (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                                         /*src1mod*/(i32 0), /*src1*/(i32 -1),
                                         SSrc_i1:$src))
 >;
 
 def : GCNPat <
-  (f64 (uint_to_fp i1:$src)),
+  (f64 (any_uint_to_fp i1:$src)),
   (V_CVT_F64_U32_e32 (V_CNDMASK_B32_e64 /*src0mod*/(i32 0), /*src0*/(i32 0),
                                         /*src1mod*/(i32 0), /*src1*/(i32 1),
                                         SSrc_i1:$src))

@@ -17,6 +17,9 @@
 #include "AMDGPUInstrInfo.h"
 #include "AMDGPUMachineFunction.h"
 #include "AMDGPUMemoryUtils.h"
+// ZLUDA changes start
+#include "FPExpansionBuilder.h"
+// ZLUDA changes end
 #include "SIMachineFunctionInfo.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/GlobalISel/GISelValueTracking.h"
@@ -35,6 +38,21 @@ static cl::opt<bool> AMDGPUBypassSlowDiv(
   "amdgpu-bypass-slow-div",
   cl::desc("Skip 64-bit divide for dynamic 32-bit values"),
   cl::init(true));
+
+// ZLUDA changes start
+static unsigned getStrictFPOpcode(unsigned Opc) {
+  switch (Opc) {
+  default:
+    return Opc;
+#define DAG_INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)               \
+  case ISD::DAGN:                                                              \
+    return ISD::STRICT_##DAGN;
+// FSETCC and FSETCCS both collapse to ISD::SETCC, so the reverse is ambiguous.
+#define CMP_INSTRUCTION(NAME, NARG, ROUND_MODE, INTRINSIC, DAGN)
+#include "llvm/IR/ConstrainedOps.def"
+  }
+}
+// ZLUDA changes end
 
 // Find a larger type to do a load / store of a vector with.
 EVT AMDGPUTargetLowering::getEquivalentMemType(LLVMContext &Ctx, EVT VT) {
@@ -462,6 +480,9 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
 
   // Expand to fneg + fadd.
   setOperationAction(ISD::FSUB, MVT::f64, Expand);
+  // ZLUDA changes start
+  setOperationAction(ISD::STRICT_FSUB, MVT::f64, Expand);
+  // ZLUDA changes end
 
   setOperationAction(ISD::CONCAT_VECTORS,
                      {MVT::v3i32,  MVT::v3f32,  MVT::v4i32,  MVT::v4f32,
@@ -483,7 +504,9 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
       Custom);
 
   setOperationAction(ISD::FP16_TO_FP, MVT::f64, Expand);
-  setOperationAction(ISD::FP_TO_FP16, {MVT::f64, MVT::f32}, Custom);
+  // ZLUDA changes start
+  setOperationAction({ISD::FP_TO_FP16, ISD::STRICT_FP_TO_FP16}, {MVT::f64, MVT::f32}, Custom);
+  // ZLUDA changes end
 
   const MVT ScalarIntVTs[] = { MVT::i32, MVT::i64 };
   for (MVT VT : ScalarIntVTs) {
@@ -516,6 +539,11 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
   setOperationAction(
       {ISD::UINT_TO_FP, ISD::SINT_TO_FP, ISD::FP_TO_SINT, ISD::FP_TO_UINT},
       MVT::i64, Custom);
+  // ZLUDA changes start
+  setOperationAction({ISD::STRICT_UINT_TO_FP, ISD::STRICT_SINT_TO_FP,
+                      ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT},
+                     MVT::i64, Custom);
+  // ZLUDA changes end
   setOperationAction(ISD::SELECT_CC, MVT::i64, Expand);
 
   setOperationAction({ISD::SMIN, ISD::UMIN, ISD::SMAX, ISD::UMAX}, MVT::i32,
@@ -547,27 +575,41 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
                         ISD::CTTZ,       ISD::CTLZ,         ISD::VECTOR_SHUFFLE,
                         ISD::SETCC,      ISD::ADDRSPACECAST},
                        VT, Expand);
+    // ZLUDA changes start
+    setOperationAction({ISD::STRICT_UINT_TO_FP, ISD::STRICT_SINT_TO_FP}, VT,
+                       Expand);
+    // Custom because it has nor rounding mode so we convert to non-strict
+    setOperationAction({ISD::STRICT_FP_TO_SINT, ISD::STRICT_FP_TO_UINT}, VT,
+                       Custom);
+    // ZLUDA changes end
   }
 
   static const MVT::SimpleValueType FloatVectorTypes[] = {
       MVT::v2f32, MVT::v3f32,  MVT::v4f32, MVT::v5f32, MVT::v6f32, MVT::v7f32,
       MVT::v9f32, MVT::v10f32, MVT::v11f32, MVT::v12f32};
 
+  // ZLUDA changes start
   for (MVT VT : FloatVectorTypes) {
-    setOperationAction(
-        {ISD::FABS,          ISD::FMINNUM,        ISD::FMAXNUM,
-         ISD::FADD,          ISD::FCEIL,          ISD::FCOS,
-         ISD::FDIV,          ISD::FEXP2,          ISD::FEXP,
-         ISD::FEXP10,        ISD::FLOG2,          ISD::FREM,
-         ISD::FLOG,          ISD::FLOG10,         ISD::FPOW,
-         ISD::FFLOOR,        ISD::FTRUNC,         ISD::FMUL,
-         ISD::FMA,           ISD::FRINT,          ISD::FNEARBYINT,
-         ISD::FSQRT,         ISD::FSIN,           ISD::FSUB,
-         ISD::FNEG,          ISD::VSELECT,        ISD::SELECT_CC,
-         ISD::FCOPYSIGN,     ISD::VECTOR_SHUFFLE, ISD::SETCC,
-         ISD::FCANONICALIZE, ISD::FROUNDEVEN},
-        VT, Expand);
+    for (unsigned Opc :
+         {ISD::FABS,          ISD::FMINNUM,        ISD::FMAXNUM,
+          ISD::FADD,          ISD::FCEIL,          ISD::FCOS,
+          ISD::FDIV,          ISD::FEXP2,          ISD::FEXP,
+          ISD::FEXP10,        ISD::FLOG2,          ISD::FREM,
+          ISD::FLOG,          ISD::FLOG10,         ISD::FPOW,
+          ISD::FFLOOR,        ISD::FTRUNC,         ISD::FMUL,
+          ISD::FMA,           ISD::FRINT,          ISD::FNEARBYINT,
+          ISD::FSQRT,         ISD::FSIN,           ISD::FSUB,
+          ISD::FNEG,          ISD::VSELECT,        ISD::SELECT_CC,
+          ISD::FCOPYSIGN,     ISD::VECTOR_SHUFFLE, ISD::SETCC,
+          ISD::FCANONICALIZE, ISD::FROUNDEVEN}) {
+      setOperationAction(Opc, VT, Expand);
+      unsigned StrictOpc = getStrictFPOpcode(Opc);
+      if(StrictOpc != Opc) {
+        setOperationAction(StrictOpc, VT, Expand);
+      }
+    }
   }
+  // ZLUDA changes end
 
   // This causes using an unrolled select operation rather than expansion with
   // bit operations. This is in general better, but the alternative using BFI
@@ -644,6 +686,10 @@ AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
   setMaxAtomicSizeInBitsSupported(128);
   setMaxDivRemBitWidthSupported(64);
   setMaxLargeFPConvertBitWidthSupported(64);
+
+  // ZLUDA changes start
+  IsStrictFPEnabled = true;
+  // ZLUDA changes end
 }
 
 bool AMDGPUTargetLowering::mayIgnoreSignedZero(SDValue Op) const {
@@ -687,6 +733,9 @@ static bool fnegFoldsIntoOpcode(unsigned Opc) {
   case AMDGPUISD::RCP:
   case AMDGPUISD::RCP_LEGACY:
   case AMDGPUISD::RCP_IFLAG:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_RCP:
+  // ZLUDA changes end
   case AMDGPUISD::SIN_HW:
   case AMDGPUISD::FMUL_LEGACY:
   case AMDGPUISD::FMIN_LEGACY:
@@ -1510,7 +1559,15 @@ SDValue AMDGPUTargetLowering::LowerOperation(SDValue Op,
     return lowerFEXP2(Op, DAG);
   case ISD::SINT_TO_FP: return LowerSINT_TO_FP(Op, DAG);
   case ISD::UINT_TO_FP: return LowerUINT_TO_FP(Op, DAG);
-  case ISD::FP_TO_FP16: return LowerFP_TO_FP16(Op, DAG);
+  // ZLUDA changes start
+  case ISD::STRICT_SINT_TO_FP:
+    return LowerSINT_TO_FP(Op, DAG);
+  case ISD::STRICT_UINT_TO_FP:
+    return LowerUINT_TO_FP(Op, DAG);
+  case ISD::STRICT_FP_TO_FP16:
+  case ISD::FP_TO_FP16:
+    return LowerFP_TO_FP16(Op, DAG);
+  // ZLUDA changes end
   case ISD::FP_TO_SINT:
   case ISD::FP_TO_UINT:
     return LowerFP_TO_INT(Op, DAG);
@@ -3367,7 +3424,10 @@ SDValue AMDGPUTargetLowering::LowerINT_TO_FP32(SDValue Op, SelectionDAG &DAG,
   // converted instead followed by negation based its sign bit.
 
   SDLoc SL(Op);
-  SDValue Src = Op.getOperand(0);
+  // ZLUDA changes start
+  FPExpansionBuilder B(Op, DAG);
+  SDValue Src = B.getOperand(0);
+  // ZLUDA changes end
 
   SDValue Lo, Hi;
   std::tie(Lo, Hi) = split64BitValue(Src, DAG);
@@ -3434,17 +3494,20 @@ SDValue AMDGPUTargetLowering::LowerINT_TO_FP32(SDValue Op, SelectionDAG &DAG,
   // Get the 32-bit normalized integer.
   Norm = DAG.getNode(ISD::OR, SL, MVT::i32, Hi, Adjust);
   // Convert the normalized 32-bit integer into f32.
-  unsigned Opc =
-      (Signed && Subtarget->isGCN()) ? ISD::SINT_TO_FP : ISD::UINT_TO_FP;
-  SDValue FVal = DAG.getNode(Opc, SL, MVT::f32, Norm);
+  // ZLUDA changes start
+  SDValue FVal = B.intToFPNoflags(SL, MVT::f32, Norm,
+                                  Signed && Subtarget->isGCN());
+  // ZLUDA changes end
 
   // Finally, need to scale back the converted floating number as the original
   // 64-bit integer is converted as a 32-bit one.
   ShAmt = DAG.getNode(ISD::SUB, SL, MVT::i32, DAG.getConstant(32, SL, MVT::i32),
                       ShAmt);
   // On GCN, use LDEXP directly.
+  // ZLUDA changes start
   if (Subtarget->isGCN())
-    return DAG.getNode(ISD::FLDEXP, SL, MVT::f32, FVal, ShAmt);
+    return B.fldexpNoflags(SL, MVT::f32, FVal, ShAmt);
+  // ZLUDA changes end
 
   // Otherwise, align 'ShAmt' to the exponent part and add it into the exponent
   // part directly to emulate the multiplication of 2^ShAmt. That 8-bit
@@ -3467,27 +3530,36 @@ SDValue AMDGPUTargetLowering::LowerINT_TO_FP32(SDValue Op, SelectionDAG &DAG,
 SDValue AMDGPUTargetLowering::LowerINT_TO_FP64(SDValue Op, SelectionDAG &DAG,
                                                bool Signed) const {
   SDLoc SL(Op);
-  SDValue Src = Op.getOperand(0);
+  // ZLUDA changes start
+  FPExpansionBuilder B(Op, DAG);
+  SDValue Src = B.getOperand(0);
+  // ZLUDA changes end
 
   SDValue Lo, Hi;
   std::tie(Lo, Hi) = split64BitValue(Src, DAG);
 
-  SDValue CvtHi = DAG.getNode(Signed ? ISD::SINT_TO_FP : ISD::UINT_TO_FP,
-                              SL, MVT::f64, Hi);
+  // ZLUDA changes start
+  // The i32 -> f64 conversions are exact, but FLDEXP and FADD are not, so the
+  // whole sequence has to stay chained to keep it from being reordered or CSEd
+  // across a change of the rounding mode.
+  SDValue CvtHi = B.intToFPNoflags(SL, MVT::f64, Hi, Signed);
+  SDValue CvtLo = B.intToFPNoflags(SL, MVT::f64, Lo, /*Signed=*/false);
+  SDValue LdExp = B.fldexpNoflags(SL, MVT::f64, CvtHi,
+                                  DAG.getConstant(32, SL, MVT::i32));
 
-  SDValue CvtLo = DAG.getNode(ISD::UINT_TO_FP, SL, MVT::f64, Lo);
-
-  SDValue LdExp = DAG.getNode(ISD::FLDEXP, SL, MVT::f64, CvtHi,
-                              DAG.getConstant(32, SL, MVT::i32));
   // TODO: Should this propagate fast-math-flags?
-  return DAG.getNode(ISD::FADD, SL, MVT::f64, LdExp, CvtLo);
+  return B.faddNoflags(SL, MVT::f64, LdExp, CvtLo);
+  // ZLUDA changes end
 }
 
 SDValue AMDGPUTargetLowering::LowerUINT_TO_FP(SDValue Op,
                                                SelectionDAG &DAG) const {
   // TODO: Factor out code common with LowerSINT_TO_FP.
   EVT DestVT = Op.getValueType();
-  SDValue Src = Op.getOperand(0);
+  // ZLUDA changes start
+  FPExpansionBuilder B(Op, DAG);
+  SDValue Src = B.getOperand(0);
+  // ZLUDA changes end
   EVT SrcVT = Src.getValueType();
 
   if (SrcVT == MVT::i16) {
@@ -3497,14 +3569,31 @@ SDValue AMDGPUTargetLowering::LowerUINT_TO_FP(SDValue Op,
 
     // Promote src to i32
     SDValue Ext = DAG.getNode(ISD::ZERO_EXTEND, DL, MVT::i32, Src);
-    return DAG.getNode(ISD::UINT_TO_FP, DL, DestVT, Ext);
+    // ZLUDA changes start
+    return B.intToFPNoflags(DL, DestVT, Ext, /*Signed=*/false);
+    // ZLUDA changes end
   }
+
+  // ZLUDA changes start
+  // i32 -> f16 is selected from a single pattern that emits v_cvt_f32_u32
+  // followed by v_cvt_f16_f32. Only the outer instruction gets the chain, so the
+  // inner f32 conversion stays CSEable across a change of the rounding mode.
+  // Split it into two chained nodes instead.
+  if (B.isStrict() && DestVT == MVT::f16 && SrcVT == MVT::i32) {
+    SDLoc DL(Op);
+    SDValue ToF32 = B.intToFPNoflags(DL, MVT::f32, Src, /*Signed=*/false);
+    SDValue FPRoundFlag = DAG.getIntPtrConstant(0, DL, /*isTarget=*/true);
+    return B.fpRoundNoflags(DL, MVT::f16, ToF32, FPRoundFlag);
+  }
+  // ZLUDA changes end
 
   if (DestVT == MVT::bf16) {
     SDLoc SL(Op);
-    SDValue ToF32 = DAG.getNode(ISD::UINT_TO_FP, SL, MVT::f32, Src);
+    // ZLUDA changes start
+    SDValue ToF32 = B.intToFPNoflags(SL, MVT::f32, Src, /*Signed=*/false);
     SDValue FPRoundFlag = DAG.getIntPtrConstant(0, SL, /*isTarget=*/true);
-    return DAG.getNode(ISD::FP_ROUND, SL, MVT::bf16, ToF32, FPRoundFlag);
+    return B.fpRoundNoflags(SL, MVT::bf16, ToF32, FPRoundFlag);
+    // ZLUDA changes end
   }
 
   if (SrcVT != MVT::i64)
@@ -3513,13 +3602,11 @@ SDValue AMDGPUTargetLowering::LowerUINT_TO_FP(SDValue Op,
   if (Subtarget->has16BitInsts() && DestVT == MVT::f16) {
     SDLoc DL(Op);
 
-    SDValue IntToFp32 = DAG.getNode(Op.getOpcode(), DL, MVT::f32, Src);
-    SDValue FPRoundFlag =
-        DAG.getIntPtrConstant(0, SDLoc(Op), /*isTarget=*/true);
-    SDValue FPRound =
-        DAG.getNode(ISD::FP_ROUND, DL, MVT::f16, IntToFp32, FPRoundFlag);
-
-    return FPRound;
+    // ZLUDA changes start
+    SDValue IntToFp32 = B.intToFPNoflags(DL, MVT::f32, Src, /*Signed=*/false);
+    SDValue FPRoundFlag = DAG.getIntPtrConstant(0, DL, /*isTarget=*/true);
+    return B.fpRoundNoflags(DL, MVT::f16, IntToFp32, FPRoundFlag);
+    // ZLUDA changes end
   }
 
   if (DestVT == MVT::f32)
@@ -3533,7 +3620,10 @@ SDValue AMDGPUTargetLowering::LowerSINT_TO_FP(SDValue Op,
                                               SelectionDAG &DAG) const {
   EVT DestVT = Op.getValueType();
 
-  SDValue Src = Op.getOperand(0);
+  // ZLUDA changes start
+  FPExpansionBuilder B(Op, DAG);
+  SDValue Src = B.getOperand(0);
+  // ZLUDA changes end
   EVT SrcVT = Src.getValueType();
 
   if (SrcVT == MVT::i16) {
@@ -3543,14 +3633,18 @@ SDValue AMDGPUTargetLowering::LowerSINT_TO_FP(SDValue Op,
     SDLoc DL(Op);
     // Promote src to i32
     SDValue Ext = DAG.getNode(ISD::SIGN_EXTEND, DL, MVT::i32, Src);
-    return DAG.getNode(ISD::SINT_TO_FP, DL, DestVT, Ext);
+    // ZLUDA changes start
+    return B.intToFPNoflags(DL, DestVT, Ext, /*Signed=*/true);
+    // ZLUDA changes end
   }
 
   if (DestVT == MVT::bf16) {
     SDLoc SL(Op);
-    SDValue ToF32 = DAG.getNode(ISD::SINT_TO_FP, SL, MVT::f32, Src);
+    // ZLUDA changes start
+    SDValue ToF32 = B.intToFPNoflags(SL, MVT::f32, Src, /*Signed=*/true);
     SDValue FPRoundFlag = DAG.getIntPtrConstant(0, SL, /*isTarget=*/true);
-    return DAG.getNode(ISD::FP_ROUND, SL, MVT::bf16, ToF32, FPRoundFlag);
+    return B.fpRoundNoflags(SL, MVT::bf16, ToF32, FPRoundFlag);
+    // ZLUDA changes end
   }
 
   if (SrcVT != MVT::i64)
@@ -3560,15 +3654,12 @@ SDValue AMDGPUTargetLowering::LowerSINT_TO_FP(SDValue Op,
 
   if (Subtarget->has16BitInsts() && DestVT == MVT::f16) {
     SDLoc DL(Op);
-    SDValue Src = Op.getOperand(0);
 
-    SDValue IntToFp32 = DAG.getNode(Op.getOpcode(), DL, MVT::f32, Src);
-    SDValue FPRoundFlag =
-        DAG.getIntPtrConstant(0, SDLoc(Op), /*isTarget=*/true);
-    SDValue FPRound =
-        DAG.getNode(ISD::FP_ROUND, DL, MVT::f16, IntToFp32, FPRoundFlag);
-
-    return FPRound;
+    // ZLUDA changes start
+    SDValue IntToFp32 = B.intToFPNoflags(DL, MVT::f32, Src, /*Signed=*/true);
+    SDValue FPRoundFlag = DAG.getIntPtrConstant(0, DL, /*isTarget=*/true);
+    return B.fpRoundNoflags(DL, MVT::f16, IntToFp32, FPRoundFlag);
+    // ZLUDA changes end
   }
 
   if (DestVT == MVT::f32)
@@ -3655,18 +3746,34 @@ SDValue AMDGPUTargetLowering::LowerFP_TO_INT64(SDValue Op, SelectionDAG &DAG,
 
 SDValue AMDGPUTargetLowering::LowerFP_TO_FP16(SDValue Op, SelectionDAG &DAG) const {
   SDLoc DL(Op);
-  SDValue N0 = Op.getOperand(0);
+  // ZLUDA changes start
+  bool IsStrict = Op->isStrictFPOpcode();
+  SDValue Chain = IsStrict ? Op.getOperand(0) : SDValue();
+  SDValue N0 = Op.getOperand(IsStrict ? 1 : 0);
+  // ZLUDA changes end
 
   // Convert to target node to get known bits
-  if (N0.getValueType() == MVT::f32)
+  if (N0.getValueType() == MVT::f32) {
+    // ZLUDA changes start
+    if (IsStrict)
+      return DAG.getNode(AMDGPUISD::STRICT_FP_TO_FP16, DL,
+                         DAG.getVTList(Op.getValueType(), MVT::Other),
+                         {Chain, N0});
+    // ZLUDA changes end
     return DAG.getNode(AMDGPUISD::FP_TO_FP16, DL, Op.getValueType(), N0);
+  }
 
   if (Op->getFlags().hasApproximateFuncs()) {
     // There is a generic expand for FP_TO_FP16 with unsafe fast math.
     return SDValue();
   }
 
-  return LowerF64ToF16Safe(N0, DL, DAG);
+  // ZLUDA changes start
+  // FIXME: LowerF64ToF16Safe is plain integer arithmetic that does not honor
+  // rounding mode
+  SDValue Result = LowerF64ToF16Safe(N0, DL, DAG);
+  return IsStrict ? DAG.getMergeValues({Result, Chain}, DL) : Result;
+  // ZLUDA changes end
 }
 
 // return node in i32
@@ -5202,6 +5309,9 @@ SDValue AMDGPUTargetLowering::performFNegCombine(SDNode *N,
   case AMDGPUISD::RCP:
   case AMDGPUISD::RCP_LEGACY:
   case AMDGPUISD::RCP_IFLAG:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_RCP:
+  // ZLUDA changes end
   case AMDGPUISD::SIN_HW: {
     SDValue CvtSrc = N0.getOperand(0);
     if (CvtSrc.getOpcode() == ISD::FNEG) {
@@ -5218,13 +5328,19 @@ SDValue AMDGPUTargetLowering::performFNegCombine(SDNode *N,
     SDValue Neg = DAG.getNode(ISD::FNEG, SL, CvtSrc.getValueType(), CvtSrc);
     return DAG.getNode(Opc, SL, VT, Neg, N0->getFlags());
   }
+  // ZLUDA changes start
+  case ISD::STRICT_FP_ROUND:
   case ISD::FP_ROUND: {
-    SDValue CvtSrc = N0.getOperand(0);
+    bool IsStrict = N0.getOpcode() == ISD::STRICT_FP_ROUND;
+    SDValue CvtSrc = N0.getOperand(IsStrict ? 1 : 0);
+    SDValue RoundFlag = N0.getOperand(IsStrict ? 2 : 1);
 
     if (CvtSrc.getOpcode() == ISD::FNEG) {
       // (fneg (fp_round (fneg x))) -> (fp_round x)
-      return DAG.getNode(ISD::FP_ROUND, SL, VT,
-                         CvtSrc.getOperand(0), N0.getOperand(1));
+      if (IsStrict)
+        return DAG.getNode(ISD::STRICT_FP_ROUND, SL, {VT, MVT::Other},
+                           {N0.getOperand(0), CvtSrc.getOperand(0), RoundFlag});
+      return DAG.getNode(ISD::FP_ROUND, SL, VT, CvtSrc.getOperand(0), RoundFlag);
     }
 
     if (!N0.hasOneUse())
@@ -5232,8 +5348,12 @@ SDValue AMDGPUTargetLowering::performFNegCombine(SDNode *N,
 
     // (fneg (fp_round x)) -> (fp_round (fneg x))
     SDValue Neg = DAG.getNode(ISD::FNEG, SL, CvtSrc.getValueType(), CvtSrc);
-    return DAG.getNode(ISD::FP_ROUND, SL, VT, Neg, N0.getOperand(1));
+    if (IsStrict)
+      return DAG.getNode(ISD::STRICT_FP_ROUND, SL, {VT, MVT::Other},
+                         {N0.getOperand(0), Neg, RoundFlag});
+    return DAG.getNode(ISD::FP_ROUND, SL, VT, Neg, RoundFlag);
   }
+  // ZLUDA changes end
   case ISD::FP16_TO_FP: {
     // v_cvt_f32_f16 supports source modifiers on pre-VI targets without legal
     // f16, but legalization of f16 fneg ends up pulling it out of the source.
@@ -5553,6 +5673,9 @@ SDValue AMDGPUTargetLowering::PerformDAGCombine(SDNode *N,
     return performStoreCombine(N, DCI);
   case AMDGPUISD::RCP:
   case AMDGPUISD::RCP_IFLAG:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_RCP:
+  // ZLUDA changes end
     return performRcpCombine(N, DCI);
   case ISD::AssertZext:
   case ISD::AssertSext:
@@ -5771,6 +5894,14 @@ const char* AMDGPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(RSQ)
   NODE_NAME_CASE(RCP_LEGACY)
   NODE_NAME_CASE(RCP_IFLAG)
+  // ZLUDA changes start
+  NODE_NAME_CASE(STRICT_DIV_FMAS)
+  NODE_NAME_CASE(STRICT_RCP)
+  NODE_NAME_CASE(STRICT_RSQ)
+  NODE_NAME_CASE(STRICT_SQRT)
+  NODE_NAME_CASE(STRICT_LOG)
+  NODE_NAME_CASE(STRICT_EXP)
+  // ZLUDA changes end
   NODE_NAME_CASE(LOG)
   NODE_NAME_CASE(EXP)
   NODE_NAME_CASE(FMUL_LEGACY)
@@ -5810,6 +5941,9 @@ const char* AMDGPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(CVT_PK_I16_I32)
   NODE_NAME_CASE(CVT_PK_U16_U32)
   NODE_NAME_CASE(FP_TO_FP16)
+  // ZLUDA changes start
+  NODE_NAME_CASE(STRICT_FP_TO_FP16)
+  // ZLUDA changes end
   NODE_NAME_CASE(BUILD_VERTICAL_VECTOR)
   NODE_NAME_CASE(CONST_DATA_PTR)
   NODE_NAME_CASE(PC_ADD_REL_OFFSET)
@@ -5959,7 +6093,10 @@ void AMDGPUTargetLowering::computeKnownBitsForTargetNode(
 
     break;
   }
-  case AMDGPUISD::FP_TO_FP16: {
+  case AMDGPUISD::FP_TO_FP16:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_FP_TO_FP16: {
+    // ZLUDA changes end
     unsigned BitWidth = Known.getBitWidth();
 
     // High bits are zero.
@@ -6129,6 +6266,9 @@ unsigned AMDGPUTargetLowering::ComputeNumSignBitsForTargetNode(
   case AMDGPUISD::BUFFER_LOAD_USHORT:
     return 16;
   case AMDGPUISD::FP_TO_FP16:
+  // ZLUDA changes start
+  case AMDGPUISD::STRICT_FP_TO_FP16:
+  // ZLUDA changes end
     return 16;
   case AMDGPUISD::SMIN3:
   case AMDGPUISD::SMAX3:

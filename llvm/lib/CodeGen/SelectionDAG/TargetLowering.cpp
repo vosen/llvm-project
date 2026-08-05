@@ -11819,19 +11819,34 @@ SDValue TargetLowering::expandRoundInexactToOdd(EVT ResultVT, SDValue Op,
 }
 
 SDValue TargetLowering::expandFP_ROUND(SDNode *Node, SelectionDAG &DAG) const {
-  assert(Node->getOpcode() == ISD::FP_ROUND && "Unexpected opcode!");
-  SDValue Op = Node->getOperand(0);
+  // ZLUDA changes start
+  bool IsStrict = Node->isStrictFPOpcode();
+  assert((Node->getOpcode() == ISD::FP_ROUND ||
+          Node->getOpcode() == ISD::STRICT_FP_ROUND) &&
+         "Unexpected opcode!");
+  SDValue Chain = IsStrict ? Node->getOperand(0) : SDValue();
+  SDValue Op = Node->getOperand(IsStrict ? 1 : 0);
   EVT VT = Node->getValueType(0);
   SDLoc dl(Node);
   if (VT.getScalarType() == MVT::bf16) {
-    if (Node->getConstantOperandVal(1) == 1) {
-      return DAG.getNode(ISD::FP_TO_BF16, dl, VT, Node->getOperand(0));
+    if (Node->getConstantOperandVal(IsStrict ? 2 : 1) == 1) {
+      if (IsStrict)
+        return DAG.getNode(ISD::STRICT_FP_TO_BF16, dl, {VT, MVT::Other},
+                           {Chain, Op});
+      return DAG.getNode(ISD::FP_TO_BF16, dl, VT, Op);
     }
     EVT OperandVT = Op.getValueType();
-    SDValue IsNaN = DAG.getSetCC(
-        dl,
-        getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), OperandVT),
-        Op, Op, ISD::SETUO);
+    EVT SetCCVT =
+        getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), OperandVT);
+    SDValue IsNaN;
+    if (IsStrict) {
+      IsNaN = DAG.getNode(ISD::STRICT_FSETCC, dl, {SetCCVT, MVT::Other},
+                          {Chain, Op, Op, DAG.getCondCode(ISD::SETUO)});
+      Chain = IsNaN.getValue(1);
+    } else {
+      IsNaN = DAG.getSetCC(dl, SetCCVT, Op, Op, ISD::SETUO);
+    }
+    // ZLUDA changes end
 
     // We are rounding binary64/binary128 -> binary32 -> bfloat16. This
     // can induce double-rounding which may alter the results. We can
@@ -11867,7 +11882,12 @@ SDValue TargetLowering::expandFP_ROUND(SDNode *Node, SelectionDAG &DAG) const {
     Op = DAG.getNode(ISD::BITCAST, dl, I32, Op);
     EVT I16 = I32.isVector() ? I32.changeVectorElementType(MVT::i16) : MVT::i16;
     Op = DAG.getNode(ISD::TRUNCATE, dl, I16, Op);
-    return DAG.getNode(ISD::BITCAST, dl, VT, Op);
+    // ZLUDA changes start
+    SDValue Result = DAG.getNode(ISD::BITCAST, dl, VT, Op);
+    if (IsStrict)
+      return DAG.getMergeValues({Result, Chain}, dl);
+    return Result;
+    // ZLUDA changes end
   }
   return SDValue();
 }
