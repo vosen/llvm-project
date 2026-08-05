@@ -213,6 +213,10 @@ AMDGPUTargetInfo::AMDGPUTargetInfo(const llvm::Triple &Triple,
 
   // TODO: This is not really true for targets without half support, but also
   // should just be assumed true for the dummy target.
+  // ZLUDA changes start
+  HasStrictFP = true;
+  // ZLUDA changes end
+
   HasFastHalfType = true;
   HasFloat16 = true;
   WavefrontSize = (GPUFeatures & llvm::AMDGPU::FEATURE_WAVE32) ? 32 : 64;

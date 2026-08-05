@@ -55,3 +55,4 @@ void AMDGPUSelectionDAGInfo::verifyTargetNode(const SelectionDAG &DAG,
   }
   SelectionDAGGenTargetInfo::verifyTargetNode(DAG, N);
 }
+
