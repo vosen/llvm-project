@@ -131,6 +131,12 @@ def AMDGPUfract_impl : SDNode<"AMDGPUISD::FRACT", SDTFPUnaryOp>;
 def AMDGPUrcp_impl : SDNode<"AMDGPUISD::RCP", SDTFPUnaryOp>;
 // ZLUDA changes start
 let IsStrictFP = true in {
+  def AMDGPUcos_strict_impl : SDNode<"AMDGPUISD::STRICT_COS_HW",
+                                     SDTFPUnaryOp,
+                                     [SDNPHasChain]>;
+  def AMDGPUsin_strict_impl : SDNode<"AMDGPUISD::STRICT_SIN_HW",
+                                     SDTFPUnaryOp,
+                                     [SDNPHasChain]>;
   def AMDGPUrcp_strict_impl : SDNode<"AMDGPUISD::STRICT_RCP",
                                      SDTFPUnaryOp,
                                      [SDNPHasChain]>;
@@ -469,9 +475,17 @@ def AMDGPUrsq_clamp : PatFrags<(ops node:$src), [(int_amdgcn_rsq_clamp node:$src
                                                  (AMDGPUrsq_clamp_impl node:$src)]>;
 
 def AMDGPUsin : PatFrags<(ops node:$src), [(int_amdgcn_sin node:$src),
-                                           (AMDGPUsin_impl node:$src)]>;
+                                           (AMDGPUsin_impl node:$src),
+                                           // ZLUDA changes start
+                                           (AMDGPUsin_strict_impl node:$src)
+                                           // ZLUDA changes end
+                                           ]>;
 def AMDGPUcos : PatFrags<(ops node:$src), [(int_amdgcn_cos node:$src),
-                                           (AMDGPUcos_impl node:$src)]>;
+                                           (AMDGPUcos_impl node:$src),
+                                           // ZLUDA changes start
+                                           (AMDGPUcos_strict_impl node:$src)
+                                           // ZLUDA changes end
+                                           ]>;
 def AMDGPUfract : PatFrags<(ops node:$src), [(int_amdgcn_fract node:$src),
                                              (AMDGPUfract_impl node:$src)]>;
 def AMDGPUlog : PatFrags<(ops node:$src), [(int_amdgcn_log node:$src),
