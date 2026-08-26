@@ -619,6 +619,9 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::FFREXP, {MVT::f32, MVT::f64}, Custom);
 
   setOperationAction({ISD::FSIN, ISD::FCOS, ISD::FDIV}, MVT::f32, Custom);
+  // ZLUDA changes start
+  setOperationAction({ISD::STRICT_FSIN, ISD::STRICT_FCOS}, MVT::f32, Custom);
+  // ZLUDA changes end
   setOperationAction(ISD::FDIV, MVT::f64, Custom);
   // ZLUDA changes start
   setOperationAction(ISD::STRICT_FDIV, MVT::f32, Custom);
@@ -703,10 +706,18 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
     setOperationAction({ISD::FP_ROUND, ISD::STRICT_FP_ROUND, ISD::FCOS,
                         ISD::FSIN, ISD::FROUND},
                        MVT::f16, Custom);
+    // ZLUDA changes start
+    setOperationAction({ISD::STRICT_FSIN, ISD::STRICT_FCOS}, MVT::f16,
+                       Custom);
+    // ZLUDA changes end
 
     // BF16 - VOP1 Actions.
     if (Subtarget->hasBF16TransInsts())
       setOperationAction({ISD::FCOS, ISD::FSIN, ISD::FDIV}, MVT::bf16, Custom);
+      // ZLUDA changes start
+      setOperationAction({ISD::STRICT_FSIN, ISD::STRICT_FCOS}, MVT::bf16,
+                         Custom);
+      // ZLUDA changes end
 
     setOperationAction({ISD::FP_TO_SINT, ISD::FP_TO_UINT}, MVT::f16, Promote);
     setOperationAction({ISD::FP_TO_SINT, ISD::FP_TO_UINT}, MVT::bf16, Promote);
@@ -7000,6 +7011,8 @@ SDValue SITargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
       return lowerFSQRTF64(Op, DAG);
     return SDValue();
   }
+  case ISD::STRICT_FSIN:
+  case ISD::STRICT_FCOS:
   case ISD::FSIN:
   case ISD::FCOS:
     return LowerTrig(Op, DAG);
@@ -13105,7 +13118,11 @@ SDValue SITargetLowering::lowerFSQRTF64(SDValue Op, SelectionDAG &DAG) const {
 SDValue SITargetLowering::LowerTrig(SDValue Op, SelectionDAG &DAG) const {
   SDLoc DL(Op);
   EVT VT = Op.getValueType();
-  SDValue Arg = Op.getOperand(0);
+  // ZLUDA changes start
+  bool IsStrict = Op->isStrictFPOpcode();
+  SDValue Chain = IsStrict ? Op.getOperand(0) : SDValue();
+  SDValue Arg = Op.getOperand(IsStrict ? 1 : 0);
+  // ZLUDA changes end
   SDValue TrigVal;
 
   // Propagate fast-math flags so that the multiply we introduce can be folded
@@ -13113,6 +13130,21 @@ SDValue SITargetLowering::LowerTrig(SDValue Op, SelectionDAG &DAG) const {
   auto Flags = Op->getFlags();
 
   SDValue OneOver2Pi = DAG.getConstantFP(0.5 * numbers::inv_pi, DL, VT);
+
+  // ZLUDA changes start
+  if (IsStrict) {
+    if (Subtarget->hasTrigReducedRange())
+      return SDValue();
+    SDValue MulVal =
+        DAG.getNode(ISD::STRICT_FMUL, DL, DAG.getVTList(VT, MVT::Other),
+                    {Chain, Arg, OneOver2Pi}, Flags);
+    unsigned Opc = Op.getOpcode() == ISD::STRICT_FCOS
+                       ? AMDGPUISD::STRICT_COS_HW
+                       : AMDGPUISD::STRICT_SIN_HW;
+    return DAG.getNode(Opc, DL, DAG.getVTList(VT, MVT::Other),
+                       {MulVal.getValue(1), MulVal.getValue(0)}, Flags);
+  }
+  // ZLUDA changes end
 
   if (Subtarget->hasTrigReducedRange()) {
     SDValue MulVal = DAG.getNode(ISD::FMUL, DL, VT, Arg, OneOver2Pi, Flags);

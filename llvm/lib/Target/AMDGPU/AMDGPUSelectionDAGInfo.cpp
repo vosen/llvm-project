@@ -25,6 +25,8 @@ bool AMDGPUSelectionDAGInfo::isTargetStrictFPOpcode(unsigned Opcode) const {
          Opcode == AMDGPUISD::STRICT_SQRT ||
          Opcode == AMDGPUISD::STRICT_LOG ||
          Opcode == AMDGPUISD::STRICT_EXP ||
-         Opcode == AMDGPUISD::STRICT_FP_TO_FP16;
+         Opcode == AMDGPUISD::STRICT_FP_TO_FP16 ||
+         Opcode == AMDGPUISD::STRICT_SIN_HW ||
+         Opcode == AMDGPUISD::STRICT_COS_HW;
 }
 // ZLUDA changes end

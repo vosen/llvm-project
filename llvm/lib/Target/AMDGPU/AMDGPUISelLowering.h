@@ -470,6 +470,10 @@ enum NodeType : unsigned {
   // Denormals handled on some parts.
   COS_HW,
   SIN_HW,
+  // ZLUDA changes start
+  STRICT_COS_HW,
+  STRICT_SIN_HW,
+  // ZLUDA changes end
   FMAX_LEGACY,
   FMIN_LEGACY,
 
