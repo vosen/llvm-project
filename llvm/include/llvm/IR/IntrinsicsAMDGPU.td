@@ -1333,6 +1333,18 @@ defset list<AMDGPUImageDimIntrinsic> AMDGPUImageDimIntrinsics = {
               [IntrWriteMem, IntrWillReturn], [SDNPMemOperand], 1>,
               AMDGPUImageDMaskIntrinsic;
 
+  // ZLUDA changes start
+  defm int_amdgcn_image_load_pck
+    : AMDGPUImageDimIntrinsicsAll<"LOAD_PCK", [llvm_any_ty], [],
+                                  [IntrReadMem], [SDNPMemOperand]>,
+      AMDGPUImageDMaskIntrinsic;
+
+  defm int_amdgcn_image_store_pck : AMDGPUImageDimIntrinsicsAll<
+              "STORE_PCK", [], [AMDGPUArg<llvm_anyfloat_ty, "vdata">],
+              [IntrWriteMem, IntrWillReturn], [SDNPMemOperand]>,
+              AMDGPUImageDMaskIntrinsic;
+  // ZLUDA changes end
+
   //////////////////////////////////////////////////////////////////////////
   // MSAA intrinsics
   //////////////////////////////////////////////////////////////////////////
