@@ -293,13 +293,6 @@ SITargetLowering::SITargetLowering(const TargetMachine &TM,
       for (unsigned Opc : {ISD::FADD, ISD::FMUL, ISD::FMAXNUM, ISD::FMINNUM,
                            ISD::FCANONICALIZE}) {
         AddPromotedToType(Opc, MVT::bf16, MVT::v2bf16);
-        // ZLUDA changes start
-        unsigned StrictOpc = getStrictFPOpcode(Opc);
-        if(StrictOpc != Opc) {
-          setOperationAction(StrictOpc, MVT::bf16, Promote);
-          AddPromotedToType(StrictOpc, MVT::bf16, MVT::v2bf16);
-        }
-        // ZLUDA changes end
       }
     }
 

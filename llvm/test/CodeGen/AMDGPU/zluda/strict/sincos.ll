@@ -38,6 +38,7 @@ define void @v_constrained_sin_f32(float %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_sin_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -80,6 +81,7 @@ define void @v_constrained_cos_f32(float %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_cos_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -115,7 +117,11 @@ define amdgpu_kernel void @constrained_sin_f32(ptr addrspace(1) %out, float %a0)
 ;
 ; GFX1250-LABEL: constrained_sin_f32:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    v_mov_b32_e32 v2, 0
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
@@ -127,6 +133,7 @@ define amdgpu_kernel void @constrained_sin_f32(ptr addrspace(1) %out, float %a0)
 ; GFX1250-NEXT:    v_sin_f32_e32 v1, s2
 ; GFX1250-NEXT:    global_store_b32 v2, v0, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v2, v1, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
@@ -162,7 +169,11 @@ define amdgpu_kernel void @constrained_cos_f32(ptr addrspace(1) %out, float %a0)
 ;
 ; GFX1250-LABEL: constrained_cos_f32:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    v_mov_b32_e32 v2, 0
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
@@ -174,6 +185,7 @@ define amdgpu_kernel void @constrained_cos_f32(ptr addrspace(1) %out, float %a0)
 ; GFX1250-NEXT:    v_cos_f32_e32 v1, s2
 ; GFX1250-NEXT:    global_store_b32 v2, v0, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v2, v1, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm

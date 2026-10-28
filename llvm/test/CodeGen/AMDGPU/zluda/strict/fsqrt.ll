@@ -100,6 +100,7 @@ define void @v_constrained_sqrt_f32(float %arg, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_cndmask_b32_e32 v0, v5, v0, vcc_lo
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -137,6 +138,7 @@ define void @v_constrained_sqrt_f32_afn(float %arg, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_sqrt_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -206,7 +208,7 @@ define void @v_constrained_sqrt_f64(double %arg, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_ldexp_f64 v[4:5], v[0:1], v12
 ; GFX1250-NEXT:    v_rsq_f64_e32 v[6:7], v[4:5]
 ; GFX1250-NEXT:    v_cmp_class_f64_e64 vcc_lo, v[4:5], 0x260
-; GFX1250-NEXT:    s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
 ; GFX1250-NEXT:    v_mul_f64_e32 v[8:9], v[4:5], v[6:7]
 ; GFX1250-NEXT:    v_mul_f64_e32 v[6:7], 0.5, v[6:7]
 ; GFX1250-NEXT:    v_fma_f64 v[10:11], -v[6:7], v[8:9], 0.5
@@ -226,7 +228,7 @@ define void @v_constrained_sqrt_f64(double %arg, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_dual_cndmask_b32 v5, v7, v5 :: v_dual_cndmask_b32 v4, v6, v4
 ; GFX1250-NEXT:    v_rsq_f64_e32 v[8:9], v[0:1]
 ; GFX1250-NEXT:    v_cmp_class_f64_e64 s0, v[0:1], 0x260
-; GFX1250-NEXT:    s_delay_alu instid0(TRANS32_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)
+; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_2) | instskip(SKIP_1) | instid1(VALU_DEP_1)
 ; GFX1250-NEXT:    v_mul_f64_e32 v[10:11], v[0:1], v[8:9]
 ; GFX1250-NEXT:    v_mul_f64_e32 v[8:9], 0.5, v[8:9]
 ; GFX1250-NEXT:    v_fma_f64 v[12:13], -v[8:9], v[10:11], 0.5
@@ -244,6 +246,7 @@ define void @v_constrained_sqrt_f64(double %arg, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_dual_cndmask_b32 v1, v9, v1, s0 :: v_dual_cndmask_b32 v0, v8, v0, s0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[4:5], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]

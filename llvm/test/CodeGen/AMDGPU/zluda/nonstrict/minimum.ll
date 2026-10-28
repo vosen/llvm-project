@@ -40,13 +40,14 @@ define void @v_constrained_minimum_f16(half %a, half %b, ptr addrspace(1) %out) 
 ; GFX1250:       ; %bb.0:
 ; GFX1250-NEXT:    s_wait_loadcnt_dscnt 0x0
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
-; GFX1250-NEXT:    v_minimum_f16 v0, v0, v1
+; GFX1250-NEXT:    v_minimum_f16 v0.l, v0.l, v1.l
 ; GFX1250-NEXT:    s_round_mode 0xf
-; GFX1250-NEXT:    global_store_b16 v[2:3], v0, off scope:SCOPE_SYS
-; GFX1250-NEXT:    s_wait_storecnt 0x0
-; GFX1250-NEXT:    global_store_b16 v[2:3], v0, off scope:SCOPE_SYS
-; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0x0
+; GFX1250-NEXT:    global_store_b16 v[2:3], v0, off scope:SCOPE_SYS
+; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
+; GFX1250-NEXT:    global_store_b16 v[2:3], v0, off scope:SCOPE_SYS
+; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
   call void @llvm.set.rounding(i32 0)
   %r.a = call half @llvm.minimum.f16(half %a, half %b)
@@ -85,6 +86,7 @@ define void @v_constrained_minimum_v2f16(<2 x half> %a, <2 x half> %b, ptr addrs
 ; GFX1250-NEXT:    s_round_mode 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -133,10 +135,13 @@ define void @v_constrained_minimum_v3f16(<3 x half> %a, <3 x half> %b, ptr addrs
 ; GFX1250-NEXT:    s_round_mode 0x0
 ; GFX1250-NEXT:    global_store_b16 v[4:5], v1, off offset:4 scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[4:5], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b16 v[4:5], v1, off offset:4 scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[4:5], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -185,6 +190,7 @@ define void @v_constrained_minimum_v4f16(<4 x half> %a, <4 x half> %b, ptr addrs
 ; GFX1250-NEXT:    s_round_mode 0x0
 ; GFX1250-NEXT:    global_store_b64 v[4:5], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[4:5], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -232,6 +238,7 @@ define void @v_constrained_minimum_bf16(bfloat %a, bfloat %b, ptr addrspace(1) %
 ; GFX1250-NEXT:    v_cvt_pk_bf16_f32 v0, v0, s0
 ; GFX1250-NEXT:    global_store_b16 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b16 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -281,37 +288,29 @@ define void @v_constrained_minimum_v2bf16(<2 x bfloat> %a, <2 x bfloat> %b, ptr 
 ; GFX1250:       ; %bb.0:
 ; GFX1250-NEXT:    s_wait_loadcnt_dscnt 0x0
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
-; GFX1250-NEXT:    v_dual_lshlrev_b32 v4, 16, v1 :: v_dual_lshlrev_b32 v6, 16, v0
 ; GFX1250-NEXT:    s_round_mode 0xf
+; GFX1250-NEXT:    v_dual_lshlrev_b32 v4, 16, v1 :: v_dual_lshlrev_b32 v5, 16, v0
+; GFX1250-NEXT:    v_dual_lshrrev_b32 v6, 16, v0 :: v_dual_lshrrev_b32 v10, 16, v1
 ; GFX1250-NEXT:    v_and_b32_e32 v7, 0xffff0000, v1
-; GFX1250-NEXT:    v_pk_min_num_bf16 v5, v0, v1
 ; GFX1250-NEXT:    v_and_b32_e32 v8, 0xffff0000, v0
-; GFX1250-NEXT:    v_cmp_o_f32_e32 vcc_lo, v6, v4
-; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_3) | instskip(NEXT) | instid1(VALU_DEP_3)
-; GFX1250-NEXT:    v_dual_cndmask_b32 v4, 0x7fc0, v5 :: v_dual_lshrrev_b32 v9, 16, v5
-; GFX1250-NEXT:    v_cmp_o_f32_e32 vcc_lo, v8, v7
-; GFX1250-NEXT:    v_dual_lshrrev_b32 v5, 16, v0 :: v_dual_lshrrev_b32 v7, 16, v1
-; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_3) | instskip(SKIP_1) | instid1(VALU_DEP_2)
-; GFX1250-NEXT:    v_cndmask_b32_e32 v6, 0x7fc0, v9, vcc_lo
-; GFX1250-NEXT:    v_cmp_eq_u16_e32 vcc_lo, 0x8000, v0
-; GFX1250-NEXT:    v_dual_lshlrev_b32 v8, 16, v6 :: v_dual_cndmask_b32 v0, v4, v0, vcc_lo
-; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_4) | instskip(SKIP_2) | instid1(VALU_DEP_4)
-; GFX1250-NEXT:    v_cmp_eq_u16_e32 vcc_lo, 0x8000, v5
-; GFX1250-NEXT:    v_cndmask_b32_e32 v5, v6, v5, vcc_lo
-; GFX1250-NEXT:    v_cmp_eq_u16_e32 vcc_lo, 0x8000, v1
-; GFX1250-NEXT:    v_dual_cndmask_b32 v0, v0, v1 :: v_dual_lshlrev_b32 v1, 16, v4
-; GFX1250-NEXT:    v_cmp_eq_u16_e32 vcc_lo, 0x8000, v7
-; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_4) | instskip(NEXT) | instid1(VALU_DEP_3)
-; GFX1250-NEXT:    v_cndmask_b32_e32 v5, v5, v7, vcc_lo
-; GFX1250-NEXT:    v_cmp_eq_f32_e32 vcc_lo, 0, v1
-; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_4) | instskip(SKIP_3) | instid1(VALU_DEP_1)
-; GFX1250-NEXT:    v_cndmask_b32_e32 v0, v4, v0, vcc_lo
-; GFX1250-NEXT:    v_cmp_eq_f32_e32 vcc_lo, 0, v8
+; GFX1250-NEXT:    v_pk_min_num_bf16 v9, v0, v1
+; GFX1250-NEXT:    v_cmp_o_f32_e32 vcc_lo, v5, v4
+; GFX1250-NEXT:    v_cmp_eq_u16_e64 s0, 0x8000, v0.l
+; GFX1250-NEXT:    v_cmp_eq_u16_e64 s1, 0x8000, v6.l
+; GFX1250-NEXT:    v_cmp_o_f32_e64 s2, v8, v7
+; GFX1250-NEXT:    v_lshrrev_b32_e32 v11, 16, v9
+; GFX1250-NEXT:    v_cndmask_b16 v0.h, 0x7fc0, v9.l, vcc_lo
+; GFX1250-NEXT:    v_cmp_eq_f32_e32 vcc_lo, v5, v4
+; GFX1250-NEXT:    v_cndmask_b16 v0.l, v1.l, v0.l, s0
+; GFX1250-NEXT:    v_cndmask_b16 v1.l, v10.l, v6.l, s1
+; GFX1250-NEXT:    v_cndmask_b16 v1.h, 0x7fc0, v11.l, s2
+; GFX1250-NEXT:    v_cmp_eq_f32_e64 s0, v8, v7
 ; GFX1250-NEXT:    s_round_mode 0x0
-; GFX1250-NEXT:    v_cndmask_b32_e32 v1, v6, v5, vcc_lo
-; GFX1250-NEXT:    v_perm_b32 v0, v1, v0, 0x5040100
+; GFX1250-NEXT:    v_cndmask_b16 v0.l, v0.h, v0.l, vcc_lo
+; GFX1250-NEXT:    v_cndmask_b16 v0.h, v1.h, v1.l, s0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -376,28 +375,30 @@ define void @v_constrained_minimum_v3bf16(<3 x bfloat> %a, <3 x bfloat> %b, ptr 
 ; GFX1250:       ; %bb.0:
 ; GFX1250-NEXT:    s_wait_loadcnt_dscnt 0x0
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
+; GFX1250-NEXT:    v_dual_lshlrev_b32 v3, 16, v3 :: v_dual_lshlrev_b32 v1, 16, v1
 ; GFX1250-NEXT:    v_and_b32_e32 v6, 0xffff0000, v2
-; GFX1250-NEXT:    v_dual_lshlrev_b32 v2, 16, v2 :: v_dual_lshlrev_b32 v3, 16, v3
-; GFX1250-NEXT:    v_lshlrev_b32_e32 v1, 16, v1
 ; GFX1250-NEXT:    v_and_b32_e32 v7, 0xffff0000, v0
-; GFX1250-NEXT:    v_lshlrev_b32_e32 v0, 16, v0
-; GFX1250-NEXT:    s_round_mode 0xf
-; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_3) | instskip(NEXT) | instid1(VALU_DEP_3)
+; GFX1250-NEXT:    v_dual_lshlrev_b32 v2, 16, v2 :: v_dual_lshlrev_b32 v0, 16, v0
+; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_4) | instskip(SKIP_1) | instid1(VALU_DEP_3)
 ; GFX1250-NEXT:    v_minimum_f32 v1, v1, v3
-; GFX1250-NEXT:    v_minimum_f32 v6, v7, v6
-; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_3) | instskip(SKIP_1) | instid1(VALU_DEP_3)
-; GFX1250-NEXT:    v_minimum_f32 v0, v0, v2
+; GFX1250-NEXT:    s_round_mode 0xf
+; GFX1250-NEXT:    v_minimum_f32 v3, v7, v6
 ; GFX1250-NEXT:    s_round_mode 0x0
+; GFX1250-NEXT:    v_minimum_f32 v2, v0, v2
 ; GFX1250-NEXT:    v_cvt_pk_bf16_f32 v1, v1, s0
-; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_2)
-; GFX1250-NEXT:    v_cvt_pk_bf16_f32 v0, v0, v6
-; GFX1250-NEXT:    global_store_b16 v[4:5], v1, off offset:4 scope:SCOPE_SYS
+; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_3)
+; GFX1250-NEXT:    v_mov_b16_e32 v0.l, v1.l
+; GFX1250-NEXT:    v_cvt_pk_bf16_f32 v1, v2, v3
+; GFX1250-NEXT:    global_store_b16 v[4:5], v0, off offset:4 scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
-; GFX1250-NEXT:    global_store_b32 v[4:5], v0, off scope:SCOPE_SYS
+; GFX1250-NEXT:    s_wait_xcnt 0x0
+; GFX1250-NEXT:    global_store_b32 v[4:5], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
-; GFX1250-NEXT:    global_store_b16 v[4:5], v1, off offset:4 scope:SCOPE_SYS
+; GFX1250-NEXT:    s_wait_xcnt 0x0
+; GFX1250-NEXT:    global_store_b16 v[4:5], v0, off offset:4 scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
-; GFX1250-NEXT:    global_store_b32 v[4:5], v0, off scope:SCOPE_SYS
+; GFX1250-NEXT:    s_wait_xcnt 0x0
+; GFX1250-NEXT:    global_store_b32 v[4:5], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
   call void @llvm.set.rounding(i32 0)
@@ -484,6 +485,7 @@ define void @v_constrained_minimum_v4bf16(<4 x bfloat> %a, <4 x bfloat> %b, ptr 
 ; GFX1250-NEXT:    v_cvt_pk_bf16_f32 v0, v0, v3
 ; GFX1250-NEXT:    global_store_b64 v[4:5], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[4:5], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -519,6 +521,7 @@ define void @v_constrained_minimum_f32(float %a, float %b, ptr addrspace(1) %out
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0x0
@@ -559,6 +562,7 @@ define void @v_constrained_minimum_v2f32(<2 x float> %a, <2 x float> %b, ptr add
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    global_store_b64 v[4:5], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[4:5], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0x0
@@ -603,6 +607,7 @@ define void @v_constrained_minimum_v3f32(<3 x float> %a, <3 x float> %b, ptr add
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    global_store_b96 v[6:7], v[0:2], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b96 v[6:7], v[0:2], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0x0
@@ -651,6 +656,7 @@ define void @v_constrained_minimum_v4f32(<4 x float> %a, <4 x float> %b, ptr add
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    global_store_b128 v[8:9], v[0:3], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b128 v[8:9], v[0:3], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0x0
@@ -688,6 +694,7 @@ define void @v_constrained_minimum_f64(double %a, double %b, ptr addrspace(1) %o
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    global_store_b64 v[4:5], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[4:5], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0x0
@@ -730,6 +737,7 @@ define void @v_constrained_minimum_v2f64(<2 x double> %a, <2 x double> %b, ptr a
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    global_store_b128 v[8:9], v[0:3], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b128 v[8:9], v[0:3], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0x0
@@ -781,10 +789,13 @@ define void @v_constrained_minimum_v3f64(<3 x double> %a, <3 x double> %b, ptr a
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    global_store_b64 v[12:13], v[4:5], off offset:16 scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b128 v[12:13], v[0:3], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[12:13], v[4:5], off offset:16 scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b128 v[12:13], v[0:3], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0x0
@@ -841,10 +852,13 @@ define void @v_constrained_minimum_v4f64(<4 x double> %a, <4 x double> %b, ptr a
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    global_store_b128 v[16:17], v[4:7], off offset:16 scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b128 v[16:17], v[0:3], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b128 v[16:17], v[4:7], off offset:16 scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b128 v[16:17], v[0:3], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0x0

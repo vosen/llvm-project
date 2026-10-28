@@ -639,10 +639,10 @@ define amdgpu_ps <4 x i32> @load_pck_1d_tfe(<8 x i32> inreg %rsrc, ptr addrspace
 ; GFX10-LABEL: load_pck_1d_tfe:
 ; GFX10:       ; %bb.0: ; %main_body
 ; GFX10-NEXT:    v_mov_b32_e32 v1, 0
-; GFX10-NEXT:    v_mov_b32_e32 v5, v1
 ; GFX10-NEXT:    v_mov_b32_e32 v2, v1
 ; GFX10-NEXT:    v_mov_b32_e32 v3, v1
 ; GFX10-NEXT:    v_mov_b32_e32 v4, v1
+; GFX10-NEXT:    v_mov_b32_e32 v5, v1
 ; GFX10-NEXT:    v_mov_b32_e32 v6, v5
 ; GFX10-NEXT:    v_mov_b32_e32 v5, v4
 ; GFX10-NEXT:    v_mov_b32_e32 v4, v3
@@ -660,12 +660,11 @@ define amdgpu_ps <4 x i32> @load_pck_1d_tfe(<8 x i32> inreg %rsrc, ptr addrspace
 ; GFX11-LABEL: load_pck_1d_tfe:
 ; GFX11:       ; %bb.0: ; %main_body
 ; GFX11-NEXT:    v_mov_b32_e32 v1, 0
-; GFX11-NEXT:    v_mov_b32_e32 v5, v1
 ; GFX11-NEXT:    v_mov_b32_e32 v2, v1
 ; GFX11-NEXT:    v_mov_b32_e32 v3, v1
 ; GFX11-NEXT:    v_mov_b32_e32 v4, v1
-; GFX11-NEXT:    v_mov_b32_e32 v6, v5
-; GFX11-NEXT:    v_mov_b32_e32 v5, v4
+; GFX11-NEXT:    v_mov_b32_e32 v5, v1
+; GFX11-NEXT:    v_dual_mov_b32 v6, v5 :: v_dual_mov_b32 v5, v4
 ; GFX11-NEXT:    v_mov_b32_e32 v4, v3
 ; GFX11-NEXT:    v_mov_b32_e32 v3, v2
 ; GFX11-NEXT:    v_mov_b32_e32 v2, v1
@@ -681,10 +680,9 @@ define amdgpu_ps <4 x i32> @load_pck_1d_tfe(<8 x i32> inreg %rsrc, ptr addrspace
 ; GFX12-LABEL: load_pck_1d_tfe:
 ; GFX12:       ; %bb.0: ; %main_body
 ; GFX12-NEXT:    v_mov_b32_e32 v1, 0
-; GFX12-NEXT:    v_dual_mov_b32 v4, v1 :: v_dual_mov_b32 v5, v1
 ; GFX12-NEXT:    v_dual_mov_b32 v2, v1 :: v_dual_mov_b32 v3, v1
-; GFX12-NEXT:    v_mov_b32_e32 v6, v5
-; GFX12-NEXT:    v_mov_b32_e32 v5, v4
+; GFX12-NEXT:    v_dual_mov_b32 v4, v1 :: v_dual_mov_b32 v5, v1
+; GFX12-NEXT:    v_dual_mov_b32 v6, v5 :: v_dual_mov_b32 v5, v4
 ; GFX12-NEXT:    v_mov_b32_e32 v4, v3
 ; GFX12-NEXT:    v_mov_b32_e32 v3, v2
 ; GFX12-NEXT:    v_mov_b32_e32 v2, v1

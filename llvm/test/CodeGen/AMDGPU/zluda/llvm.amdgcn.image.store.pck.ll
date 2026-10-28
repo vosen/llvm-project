@@ -411,8 +411,9 @@ define amdgpu_kernel void @store_pck_2d_kernel(ptr addrspace(1) %rsrc.ptr, ptr a
 ; GFX11-NEXT:    s_load_b256 s[0:7], s[0:1], 0x0
 ; GFX11-NEXT:    v_dual_mov_b32 v4, s12 :: v_dual_mov_b32 v5, s13
 ; GFX11-NEXT:    s_waitcnt lgkmcnt(0)
+; GFX11-NEXT:    v_mov_b32_e32 v2, s10
 ; GFX11-NEXT:    v_dual_mov_b32 v0, s8 :: v_dual_mov_b32 v3, s11
-; GFX11-NEXT:    v_dual_mov_b32 v1, s9 :: v_dual_mov_b32 v2, s10
+; GFX11-NEXT:    v_mov_b32_e32 v1, s9
 ; GFX11-NEXT:    image_store_pck v[0:3], v[4:5], s[0:7] dmask:0xf dim:SQ_RSRC_IMG_2D unorm
 ; GFX11-NEXT:    s_endpgm
 ;
@@ -426,8 +427,9 @@ define amdgpu_kernel void @store_pck_2d_kernel(ptr addrspace(1) %rsrc.ptr, ptr a
 ; GFX12-NEXT:    s_load_b256 s[0:7], s[0:1], 0x0
 ; GFX12-NEXT:    v_dual_mov_b32 v4, s12 :: v_dual_mov_b32 v5, s13
 ; GFX12-NEXT:    s_wait_kmcnt 0x0
+; GFX12-NEXT:    v_mov_b32_e32 v2, s10
 ; GFX12-NEXT:    v_dual_mov_b32 v0, s8 :: v_dual_mov_b32 v3, s11
-; GFX12-NEXT:    v_dual_mov_b32 v1, s9 :: v_dual_mov_b32 v2, s10
+; GFX12-NEXT:    v_mov_b32_e32 v1, s9
 ; GFX12-NEXT:    image_store_pck v[0:3], [v4, v5], s[0:7] dmask:0xf dim:SQ_RSRC_IMG_2D
 ; GFX12-NEXT:    s_endpgm
 main_body:

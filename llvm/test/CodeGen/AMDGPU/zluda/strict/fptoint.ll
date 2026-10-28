@@ -38,6 +38,7 @@ define void @v_constrained_fptosi_f32_to_i32(float %arg, ptr addrspace(1) %out) 
 ; GFX1250-NEXT:    v_cvt_i32_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -73,6 +74,7 @@ define void @v_constrained_fptoui_f32_to_i32(float %arg, ptr addrspace(1) %out) 
 ; GFX1250-NEXT:    v_cvt_u32_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -108,6 +110,7 @@ define void @v_constrained_fptosi_f32_to_i16(float %arg, ptr addrspace(1) %out) 
 ; GFX1250-NEXT:    v_cvt_i32_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b16 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b16 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -166,6 +169,7 @@ define void @v_constrained_fptosi_f32_to_i64(float %arg, ptr addrspace(1) %out) 
 ; GFX1250-NEXT:    v_sub_nc_u64_e32 v[0:1], v[4:5], v[0:1]
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -213,6 +217,7 @@ define void @v_constrained_fptoui_f32_to_i64(float %arg, ptr addrspace(1) %out) 
 ; GFX1250-NEXT:    v_cvt_u32_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -259,6 +264,7 @@ define void @v_constrained_fptosi_f64_to_i64(double %arg, ptr addrspace(1) %out)
 ; GFX1250-NEXT:    v_cvt_u32_f64_e32 v4, v[0:1]
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[4:5], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[4:5], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -305,6 +311,7 @@ define void @v_constrained_fptoui_f64_to_i64(double %arg, ptr addrspace(1) %out)
 ; GFX1250-NEXT:    v_cvt_u32_f64_e32 v4, v[0:1]
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[4:5], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[4:5], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -338,11 +345,12 @@ define void @v_constrained_fptosi_f16_to_i32(half %arg, ptr addrspace(1) %out) #
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    v_dual_mov_b32 v3, v2 :: v_dual_mov_b32 v2, v1
 ; GFX1250-NEXT:    s_round_mode 0x0
-; GFX1250-NEXT:    v_cvt_f32_f16_e32 v0, v0
+; GFX1250-NEXT:    v_cvt_f32_f16_e32 v0, v0.l
 ; GFX1250-NEXT:    s_delay_alu instid0(VALU_DEP_1)
 ; GFX1250-NEXT:    v_cvt_i32_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -381,6 +389,7 @@ define void @v_constrained_fptoui_bf16_to_i32(bfloat %arg, ptr addrspace(1) %out
 ; GFX1250-NEXT:    v_cvt_u32_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -417,6 +426,7 @@ define void @v_constrained_fptosi_v2f32_to_v2i32(<2 x float> %arg, ptr addrspace
 ; GFX1250-NEXT:    s_round_mode 0x0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]

@@ -129,9 +129,15 @@ getCMatrixNVPhysicalCoordinatesForLogicalCoordinates(IRBuilder<> &Builder,
                                   ThreadIDInGroup, "nv.lane");
 
   // i = (row / 8) * 2 + col % 2
-  Value *ElementIdx =
-      Builder.CreateAdd(Builder.CreateShl(Builder.CreateLShr(Row, 3), 1),
-                        Builder.CreateAnd(Column, 1));
+  // ZLUDA changes start
+  // The instruction order has to match the one expected by the test, so the
+  // operand builders are sequenced explicitly instead of being nested as
+  // arguments, whose evaluation order is unspecified.
+  Value *HalvedRow = Builder.CreateLShr(Row, 3);
+  Value *DoubledRow = Builder.CreateShl(HalvedRow, 1);
+  Value *ColumnBit = Builder.CreateAnd(Column, 1);
+  Value *ElementIdx = Builder.CreateAdd(DoubledRow, ColumnBit);
+  // ZLUDA changes end
 
   return {Lane, ElementIdx, IsInFirst};
 }
@@ -353,7 +359,7 @@ Value *LowerMatrixConversions::cMatrixConcatenate(IRBuilder<> &Builder,
 
   if (Constant *C0 = dyn_cast<Constant>(NVFragmentFirst)) {
     if (Constant *C1 = dyn_cast<Constant>(NVFragmentSecond)) {
-      if (C0->isZeroValue() && C1->isZeroValue()) {
+      if (C0->isNullValue() && C1->isNullValue()) {
         return Constant::getNullValue(RetTy);
       }
     }

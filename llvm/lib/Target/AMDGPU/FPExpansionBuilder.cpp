@@ -1,5 +1,8 @@
 #include "FPExpansionBuilder.h"
 #include "AMDGPUISelLowering.h"
+// ZLUDA changes start
+#include "AMDGPUSelectionDAGInfo.h"
+// ZLUDA changes end
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
 

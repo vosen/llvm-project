@@ -43,6 +43,7 @@ define void @v_constrained_div_fmas_f32(float %a0, float %a1, float %a2, i1 %vcc
 ; GFX1250-NEXT:    v_div_fmas_f32 v0, v0, v1, v2
 ; GFX1250-NEXT:    global_store_b32 v[4:5], v3, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[4:5], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -75,11 +76,12 @@ define void @v_constrained_exp2_f16(half %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    v_dual_mov_b32 v3, v2 :: v_dual_mov_b32 v2, v1
-; GFX1250-NEXT:    v_exp_f16_e32 v1, v0
+; GFX1250-NEXT:    v_exp_f16_e32 v0.h, v0.l
 ; GFX1250-NEXT:    s_round_mode 0x0
-; GFX1250-NEXT:    v_exp_f16_e32 v0, v0
-; GFX1250-NEXT:    global_store_b16 v[2:3], v1, off scope:SCOPE_SYS
+; GFX1250-NEXT:    v_exp_f16_e32 v0.l, v0.l
+; GFX1250-NEXT:    global_store_d16_hi_b16 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b16 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -117,6 +119,7 @@ define void @v_constrained_exp2_f32(float %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_exp_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -154,6 +157,7 @@ define void @v_constrained_log_f32(float %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_log_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -191,6 +195,7 @@ define void @v_constrained_rcp_f32(float %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_rcp_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -227,6 +232,7 @@ define void @v_constrained_rcp_f64(double %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_rcp_f64_e32 v[0:1], v[0:1]
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[4:5], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -264,6 +270,7 @@ define void @v_constrained_rsq_f32(float %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_rsq_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -300,6 +307,7 @@ define void @v_constrained_rsq_f64(double %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_rsq_f64_e32 v[0:1], v[0:1]
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[4:5], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v[2:3], v[0:1], off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -337,6 +345,7 @@ define void @v_constrained_sqrt_f32(float %a0, ptr addrspace(1) %out) #0 {
 ; GFX1250-NEXT:    v_sqrt_f32_e32 v0, v0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v1, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v[2:3], v0, off scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_set_pc_i64 s[30:31]
@@ -374,9 +383,13 @@ define amdgpu_kernel void @constrained_div_fmas_f32(ptr addrspace(1) %out, float
 ;
 ; GFX1250-LABEL: constrained_div_fmas_f32:
 ; GFX1250:       ; %bb.0:
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
 ; GFX1250-NEXT:    s_clause 0x1
-; GFX1250-NEXT:    s_load_b128 s[0:3], s[4:5], 0x8
-; GFX1250-NEXT:    s_load_b64 s[6:7], s[4:5], 0x0
+; GFX1250-NEXT:    s_load_b128 s[0:3], s[4:5], 0x8 nv
+; GFX1250-NEXT:    s_load_b64 s[6:7], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    v_mov_b32_e32 v0, 0
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
@@ -389,6 +402,7 @@ define amdgpu_kernel void @constrained_div_fmas_f32(ptr addrspace(1) %out, float
 ; GFX1250-NEXT:    v_div_fmas_f32 v1, s0, v1, v2
 ; GFX1250-NEXT:    global_store_b32 v0, v3, s[6:7] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v0, v1, s[6:7] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
@@ -422,19 +436,24 @@ define amdgpu_kernel void @constrained_exp2_f16(ptr addrspace(1) %out, half %a0)
 ;
 ; GFX1250-LABEL: constrained_exp2_f16:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
+; GFX1250-NEXT:    v_mov_b32_e32 v1, 0
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
 ; GFX1250-NEXT:    v_s_exp_f16 s3, s2
 ; GFX1250-NEXT:    s_round_mode 0x0
-; GFX1250-NEXT:    v_mov_b32_e32 v0, 0
 ; GFX1250-NEXT:    v_s_exp_f16 s2, s2
-; GFX1250-NEXT:    v_nop
-; GFX1250-NEXT:    s_delay_alu instid0(TRANS32_DEP_1)
-; GFX1250-NEXT:    v_dual_mov_b32 v1, s3 :: v_dual_mov_b32 v2, s2
-; GFX1250-NEXT:    global_store_b16 v0, v1, s[0:1] scope:SCOPE_SYS
+; GFX1250-NEXT:    s_delay_alu instid0(TRANS32_DEP_2) | instskip(NEXT) | instid1(TRANS32_DEP_1)
+; GFX1250-NEXT:    v_mov_b16_e32 v0.l, s3
+; GFX1250-NEXT:    v_mov_b16_e32 v0.h, s2
+; GFX1250-NEXT:    global_store_b16 v1, v0, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
-; GFX1250-NEXT:    global_store_b16 v0, v2, s[0:1] scope:SCOPE_SYS
+; GFX1250-NEXT:    s_wait_xcnt 0x0
+; GFX1250-NEXT:    global_store_d16_hi_b16 v1, v0, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
   call void @llvm.set.rounding(i32 0) #0
@@ -467,7 +486,11 @@ define amdgpu_kernel void @constrained_exp2_f32(ptr addrspace(1) %out, float %a0
 ;
 ; GFX1250-LABEL: constrained_exp2_f32:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
 ; GFX1250-NEXT:    v_s_exp_f32 s3, s2
@@ -479,6 +502,7 @@ define amdgpu_kernel void @constrained_exp2_f32(ptr addrspace(1) %out, float %a0
 ; GFX1250-NEXT:    v_dual_mov_b32 v1, s3 :: v_dual_mov_b32 v2, s2
 ; GFX1250-NEXT:    global_store_b32 v0, v1, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v0, v2, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
@@ -512,7 +536,11 @@ define amdgpu_kernel void @constrained_log_f32(ptr addrspace(1) %out, float %a0)
 ;
 ; GFX1250-LABEL: constrained_log_f32:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
 ; GFX1250-NEXT:    v_s_log_f32 s3, s2
@@ -524,6 +552,7 @@ define amdgpu_kernel void @constrained_log_f32(ptr addrspace(1) %out, float %a0)
 ; GFX1250-NEXT:    v_dual_mov_b32 v1, s3 :: v_dual_mov_b32 v2, s2
 ; GFX1250-NEXT:    global_store_b32 v0, v1, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v0, v2, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
@@ -557,7 +586,11 @@ define amdgpu_kernel void @constrained_rcp_f32(ptr addrspace(1) %out, float %a0)
 ;
 ; GFX1250-LABEL: constrained_rcp_f32:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
 ; GFX1250-NEXT:    v_s_rcp_f32 s3, s2
@@ -569,6 +602,7 @@ define amdgpu_kernel void @constrained_rcp_f32(ptr addrspace(1) %out, float %a0)
 ; GFX1250-NEXT:    v_dual_mov_b32 v1, s3 :: v_dual_mov_b32 v2, s2
 ; GFX1250-NEXT:    global_store_b32 v0, v1, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v0, v2, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
@@ -600,7 +634,11 @@ define amdgpu_kernel void @constrained_rcp_f64(ptr addrspace(1) %out, double %a0
 ;
 ; GFX1250-LABEL: constrained_rcp_f64:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b128 s[0:3], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b128 s[0:3], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    v_mov_b32_e32 v4, 0
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
@@ -609,6 +647,7 @@ define amdgpu_kernel void @constrained_rcp_f64(ptr addrspace(1) %out, double %a0
 ; GFX1250-NEXT:    v_rcp_f64_e32 v[2:3], s[2:3]
 ; GFX1250-NEXT:    global_store_b64 v4, v[0:1], s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v4, v[2:3], s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
@@ -642,7 +681,11 @@ define amdgpu_kernel void @constrained_rsq_f32(ptr addrspace(1) %out, float %a0)
 ;
 ; GFX1250-LABEL: constrained_rsq_f32:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
 ; GFX1250-NEXT:    v_s_rsq_f32 s3, s2
@@ -654,6 +697,7 @@ define amdgpu_kernel void @constrained_rsq_f32(ptr addrspace(1) %out, float %a0)
 ; GFX1250-NEXT:    v_dual_mov_b32 v1, s3 :: v_dual_mov_b32 v2, s2
 ; GFX1250-NEXT:    global_store_b32 v0, v1, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v0, v2, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
@@ -685,7 +729,11 @@ define amdgpu_kernel void @constrained_rsq_f64(ptr addrspace(1) %out, double %a0
 ;
 ; GFX1250-LABEL: constrained_rsq_f64:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b128 s[0:3], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b128 s[0:3], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    v_mov_b32_e32 v4, 0
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
@@ -694,6 +742,7 @@ define amdgpu_kernel void @constrained_rsq_f64(ptr addrspace(1) %out, double %a0
 ; GFX1250-NEXT:    v_rsq_f64_e32 v[2:3], s[2:3]
 ; GFX1250-NEXT:    global_store_b64 v4, v[0:1], s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b64 v4, v[2:3], s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
@@ -727,7 +776,11 @@ define amdgpu_kernel void @constrained_sqrt_f32(ptr addrspace(1) %out, float %a0
 ;
 ; GFX1250-LABEL: constrained_sqrt_f32:
 ; GFX1250:       ; %bb.0:
-; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0
+; GFX1250-NEXT:    s_setreg_imm32_b32 hwreg(HW_REG_WAVE_MODE, 25, 1), 1 ; msbs: dst=0 src0=0 src1=0 src2=0
+; GFX1250-NEXT:    s_mov_b64 s[64:65], 0
+; GFX1250-NEXT:    v_nop
+; GFX1250-NEXT:    global_prefetch_b8 v0, s[64:65] scope:SCOPE_SE
+; GFX1250-NEXT:    s_load_b96 s[0:2], s[4:5], 0x0 nv
 ; GFX1250-NEXT:    s_round_mode 0xf
 ; GFX1250-NEXT:    s_wait_kmcnt 0x0
 ; GFX1250-NEXT:    v_s_sqrt_f32 s3, s2
@@ -739,6 +792,7 @@ define amdgpu_kernel void @constrained_sqrt_f32(ptr addrspace(1) %out, float %a0
 ; GFX1250-NEXT:    v_dual_mov_b32 v1, s3 :: v_dual_mov_b32 v2, s2
 ; GFX1250-NEXT:    global_store_b32 v0, v1, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
+; GFX1250-NEXT:    s_wait_xcnt 0x0
 ; GFX1250-NEXT:    global_store_b32 v0, v2, s[0:1] scope:SCOPE_SYS
 ; GFX1250-NEXT:    s_wait_storecnt 0x0
 ; GFX1250-NEXT:    s_endpgm
