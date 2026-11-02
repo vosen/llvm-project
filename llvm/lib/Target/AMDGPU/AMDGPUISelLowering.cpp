@@ -4132,7 +4132,35 @@ SDValue AMDGPUTargetLowering::LowerFP_TO_INT_SAT(const SDValue Op,
       (SrcVT == MVT::f16 || SrcVT == MVT::bf16 ||
        (SrcVT == MVT::f32 && Src.getOpcode() == ISD::FP16_TO_FP))) {
     const SDValue Int32VTOp = DAG.getValueType(MVT::i32);
-    return DAG.getNode(OpOpcode, DL, DstVT, Src, Int32VTOp);
+    // ZLUDA changes start
+    // return DAG.getNode(OpOpcode, DL, DstVT, Src, Int32VTOp);
+    // Upstream does not handle fp16 +/- Inf correctly when converting to 64bit
+    SDValue FpToInt = DAG.getNode(OpOpcode, DL, DstVT, Src, Int32VTOp);
+
+    EVT CCVT = getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(),
+                                  SrcVT);
+    SDValue PosInf = DAG.getConstantFP(
+        APFloat::getInf(SrcVT.getFltSemantics()), DL, SrcVT);
+
+    SDValue Cond;
+    if (OpOpcode == ISD::FP_TO_UINT_SAT) {
+      Cond = DAG.getSetCC(DL, CCVT, Src, PosInf, ISD::SETOEQ);
+      SDValue MaxConst = DAG.getConstant(APInt::getMaxValue(64), DL, DstVT);
+      FpToInt = DAG.getSelect(DL, DstVT, Cond, MaxConst, FpToInt);
+    } else {
+      SDValue NegInf = DAG.getConstantFP(
+          APFloat::getInf(SrcVT.getFltSemantics(), true), DL, SrcVT);
+      Cond = DAG.getSetCC(DL, CCVT, Src, PosInf, ISD::SETOEQ);
+      SDValue MaxConst = DAG.getConstant(
+          APInt::getSignedMaxValue(64), DL, DstVT);
+      FpToInt = DAG.getSelect(DL, DstVT, Cond, MaxConst, FpToInt);
+      SDValue NegCond = DAG.getSetCC(DL, CCVT, Src, NegInf, ISD::SETOEQ);
+      SDValue MinConst = DAG.getConstant(
+          APInt::getSignedMinValue(64), DL, DstVT);
+      FpToInt = DAG.getSelect(DL, DstVT, NegCond, MinConst, FpToInt);
+    }
+    return FpToInt;
+    // ZLUDA changes end
   }
 
   // Promote f16/bf16 src to f32 for i32 conversion
